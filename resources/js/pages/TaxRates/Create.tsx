@@ -95,7 +95,7 @@ export default function CreateTaxRate() {
             <div className='bg-white rounded-lg shadow-sm p-6'>
               <h2 className='text-lg font-medium mb-4'>À propos des taux de TVA</h2>
               <div className='prose max-w-none'>
-                <p className='text-gray-600'>
+                <p className='text-gray-600 text-sm'>
                   Ajoutez un nouveau taux de TVA applicable à vos produits.
                 </p>
                 <div className='mt-4 p-4 bg-blue-50 rounded-md border border-blue-100 flex gap-3'>

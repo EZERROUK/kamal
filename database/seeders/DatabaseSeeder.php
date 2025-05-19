@@ -14,12 +14,14 @@ class DatabaseSeeder extends Seeder
             CurrencySeeder::class,
             TaxRateSeeder::class,
             ProductSeeder::class,
+            AppSettingSeeder::class,
+
         ]);
 
         \App\Models\User::factory()->create([
             'name' => 'SuperAdmin',
             'email' => 'SuperAdmin@example.com',
-        ])->assignRole('SuperAdmin'); // Donne le rôle SuperAdmin à ton premier user
+        ])->assignRole('SuperAdmin');
     }
 }
 

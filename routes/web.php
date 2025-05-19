@@ -13,6 +13,7 @@ use App\Http\Controllers\{
     LoginLogExportController,
     TaxRateController,
     CurrencyController,
+    AppSettingController,
 };
 use Spatie\Activitylog\Models\Activity;
 
@@ -132,6 +133,13 @@ Route::prefix('currencies')->name('currencies.')->group(function () {
             ],
         ]);
     })->name('audit-logs.index');
+
+    /* App settings */
+    Route::prefix('settings')->name('settings.')->group(function () {
+    Route::get('/app', [AppSettingController::class, 'edit'])->name('app.edit');
+    Route::post('/app', [AppSettingController::class, 'update'])->name('app.update');
+    });
+
 
     Route::get('/audit-logs/export', [AuditLogExportController::class, 'export'])->name('audit-logs.export');
     Route::get('/login-logs', [LoginLogController::class, 'index'])->name('login-logs.index');

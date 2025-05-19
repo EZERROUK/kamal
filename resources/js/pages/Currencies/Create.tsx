@@ -111,7 +111,7 @@ export default function CreateCurrency() {
             <div className='bg-white rounded-lg shadow-sm p-6'>
               <h2 className='text-lg font-medium mb-4'>À propos des devises</h2>
               <div className='prose max-w-none'>
-                <p className='text-gray-600'>
+                <p className='text-gray-600 text-sm '>
                   Ajoutez une devise (monnaie) que vous souhaitez utiliser dans vos opérations, factures ou devis.
                 </p>
                 <div className='mt-4 p-4 bg-blue-50 rounded-md border border-blue-100 flex gap-3'>

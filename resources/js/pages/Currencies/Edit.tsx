@@ -104,7 +104,7 @@ export default function EditCurrency({ currency }: Props) {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-medium mb-4">À propos des devises</h2>
               <div className="prose max-w-none">
-                <p className="text-gray-600">
+                <p className="text text-sm -gray-600">
                   Les devises permettent de gérer la facturation multidevise dans vos applications.
                 </p>
                 <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100 flex gap-3">

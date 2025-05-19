@@ -56,6 +56,23 @@ class RolePermissionSeeder extends Seeder
 
             // Export logs de connexion
             'login-log-export',
+
+            // Currency
+            'currency_list',
+            'currency_create',
+            'currency_show',
+            'currency_edit',
+            'currency_delete',
+            'currency_restore',
+
+            // Taxrate
+            'taxrate_list',
+            'taxrate_create',
+            'taxrate_show',
+            'taxrate_edit',
+            'taxrate_delete',
+            'taxrate_restore',
+
         ];
 
         foreach ($permissions as $permission) {
