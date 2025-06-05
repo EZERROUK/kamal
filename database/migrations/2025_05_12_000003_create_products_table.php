@@ -10,7 +10,9 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->char('brand_id', 36)->nullable()->index();
             $table->string('name');
+            $table->string('model')->nullable();
             $table->string('sku')->unique();
             $table->text('description')->nullable();
             $table->decimal('price', 12, 2);
@@ -29,8 +31,15 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['name', 'sku']);
+            // Contrainte FK vers brands.id
+            $table->foreign('brand_id')
+                  ->references('id')->on('brands')
+                  ->onDelete('cascade');
         });
     }
-    public function down(): void { Schema::dropIfExists('products'); }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('products');
+    }
 };

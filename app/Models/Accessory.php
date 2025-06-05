@@ -1,8 +1,5 @@
 <?php
-
+// app/Models/Accessory.php
 namespace App\Models;
 
-class Accessory extends SpecializedProduct
-{
-    // Aucune valeur numérique stricte
-}
+class Accessory extends SpecializedProduct {}

@@ -31,9 +31,9 @@ class AppServiceProvider extends ServiceProvider
                 'logo_dark_path' => $s && $s->logo_dark_path
                     ? asset('storage/'.$s->logo_dark_path)
                     : null,
-                'favicon_path'   => $s && $s->favicon_path
-                    ? asset('storage/'.$s->favicon_path)
-                    : asset('storage/settings/favicon.ico'),
+                'favicon_url'     => $s?->favicon_path
+                                      ? asset('storage/'.$s->favicon_path)
+                                      : asset('/favicon.png'),
             ];
         });
     }

@@ -1,364 +1,250 @@
-// resources/js/Pages/Products/Create.tsx
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Head, useForm } from '@inertiajs/react'
-import { Button } from '@/components/ui/button'
-import AppLayout from '@/layouts/app-layout'
-import { Info, ChevronDown, X } from 'lucide-react'
 import { route } from 'ziggy-js'
-import { PageProps, Category, Currency, TaxRate } from '@/types'
+import { Info, UploadCloud, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import axios from 'axios'
+
+import AppLayout from '@/layouts/app-layout'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import DynamicFields from './Partials/DynamicFields'
+import CompatibilityFields from './Partials/CompatibilityFields'
+
+import type { PageProps, Category, Currency, TaxRate } from '@/types'
+
+/* ------------------------------------------------------------------ */
+/* Types                                                              */
+/* ------------------------------------------------------------------ */
+type SpecializedData = Record<string, any>
+
+type CompatibilityEntry = {
+  compatible_with_id: string
+  direction?: 'bidirectional' | 'uni'
+  note?: string
+}
 
 interface FormData {
+  brand_id: string
   name: string
+  model: string
   sku: string
   description: string
   price: string
   stock_quantity: number
   currency_code: string
   tax_rate_id: number
-  category_id: number
+  category_id: number | ''
   is_active: boolean
-  images?: File[]
-  primary_image_index?: number
+  images: File[]
+  primary_image_index: number
+  spec: SpecializedData
+  compatibilities: CompatibilityEntry[]
 }
 
 interface Props extends PageProps<{
+  brands: { id: number; name: string }[]
   categories: Category[]
   currencies: Currency[]
   taxRates: TaxRate[]
 }> {}
 
-export default function CreateProduct({ categories, currencies, taxRates }: Props) {
+/* ------------------------------------------------------------------ */
+/* Component                                                          */
+/* ------------------------------------------------------------------ */
+export default function CreateProduct({ brands, categories, currencies, taxRates }: Props) {
   const { data, setData, post, processing, errors } = useForm<FormData>({
+    brand_id: '',
     name: '',
+    model: '',
     sku: '',
     description: '',
     price: '',
     stock_quantity: 0,
     currency_code: currencies[0]?.code ?? '',
     tax_rate_id: taxRates[0]?.id ?? 0,
-    category_id: categories[0]?.id ?? 0,
+    category_id: '',
     is_active: true,
     images: [],
     primary_image_index: 0,
+    spec: {},
+    compatibilities: [],
   })
 
   const [previews, setPreviews] = useState<string[]>([])
-
   useEffect(() => {
-    if (!data.images) return
-    const urls = data.images.map(file => URL.createObjectURL(file))
+    const urls = data.images.map(f => URL.createObjectURL(f))
     setPreviews(urls)
-    return () => urls.forEach(url => URL.revokeObjectURL(url))
+    return () => urls.forEach(URL.revokeObjectURL)
   }, [data.images])
 
-  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  const [allProducts, setAllProducts] = useState<{ id:string; name:string }[]>([])
+  useEffect(() => {
+    axios.get(route('products.compatible-list')).then(res => setAllProducts(res.data))
+  }, [])
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return
-    const maxFiles = 7
-    const filesArray = Array.from(e.target.files)
-
-    if (filesArray.length > maxFiles) {
-      alert(`Vous ne pouvez importer que ${maxFiles} images maximum.`)
-    }
-
-    const limitedFiles = filesArray.slice(0, maxFiles)
-    setData('images', limitedFiles)
+    const files = Array.from(e.target.files).slice(0, 7)
+    setData('images', files)
     setData('primary_image_index', 0)
   }
 
-  function choosePrimary(idx: number) {
-    setData('primary_image_index', idx)
-  }
-
-  function removeImage(idx: number) {
-    const imgs = (data.images ?? []).slice()
-    imgs.splice(idx, 1)
+  const removeImage = (idx:number) => {
+    const imgs = data.images.filter((_, i) => i !== idx)
     setData('images', imgs)
-    if ((data.primary_image_index ?? 0) >= imgs.length) {
-      setData('primary_image_index', imgs.length - 1)
-    }
+    setData('primary_image_index', Math.min(data.primary_image_index, imgs.length - 1))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  const choosePrimary = (idx:number) => setData('primary_image_index', idx)
+
+  const setSpecField = (field:string, value:any) =>
+    setData('spec', { ...(data.spec ?? {}), [field]: value })
+
+  const setCompatibilities = (list:CompatibilityEntry[]) =>
+    setData('compatibilities', list)
+
+  const currentCategory = categories.find(c => c.id === data.category_id)
+  const currentSlug = currentCategory?.slug ?? ''
+  const machineSlugs = ['servers', 'desktops', 'laptops']
+  const showCompat = currentSlug && !machineSlugs.includes(currentSlug)
+
+  const handleSubmit = (e:React.FormEvent) => {
     e.preventDefault()
-    post(route('products.store'))
+    post(route('products.store'), {
+      forceFormData: true,
+      onError: () => window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
   }
 
   return (
-    <>
+    <AppLayout breadcrumbs={[{ title:'Produits', href:'/products' }, { title:'Créer' }]}>
       <Head title="Créer un produit" />
-      <AppLayout
-        breadcrumbs={[
-          { title: 'Dashboard', href: '/dashboard' },
-          { title: 'Produits', href: '/products' },
-          { title: 'Créer', href: '/products/create' },
-        ]}
-      >
-        <div className="grid grid-cols-12 gap-6 p-6">
-          {/* Formulaire */}
-          <div className="col-span-12 lg:col-span-8 xl:col-span-7">
-            <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
-              <h1 className="text-xl font-semibold">Nouveau produit</h1>
-              <form onSubmit={handleSubmit} className="space-y-6">
 
-                {/* Nom & SKU */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom<span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={data.name}
-                      onChange={e => setData('name', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                    {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SKU<span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={data.sku}
-                      onChange={e => setData('sku', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                    {errors.sku && <p className="mt-1 text-sm text-red-600">{errors.sku}</p>}
-                  </div>
-                </div>
+      <div className="grid grid-cols-12 gap-6 p-6">
+        <form onSubmit={handleSubmit} className="lg:col-span-8 xl:col-span-7 p-6 space-y-6 bg-white rounded-lg shadow-sm">
+          <h1 className="text-2xl font-semibold">Créer un produit</h1>
 
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    rows={4}
-                    value={data.description}
-                    onChange={e => setData('description', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
-                </div>
-
-                {/* Catégorie */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <div className="relative">
-                    <select
-                      value={data.category_id}
-                      onChange={e => setData('category_id', Number(e.target.value))}
-                      className="w-full appearance-none px-4 py-3 pr-10 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {categories.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    </div>
-                  </div>
-                  {errors.category_id && <p className="mt-1 text-sm text-red-600">{errors.category_id}</p>}
-                </div>
-
-                {/* Prix / Devise / TVA */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Prix<span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={data.price}
-                      onChange={e => setData('price', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                    {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-                    <div className="relative">
-                      <select
-                        value={data.currency_code}
-                        onChange={e => setData('currency_code', e.target.value)}
-                        className="w-full appearance-none px-4 py-3 pr-10 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {currencies.map(c => (
-                          <option key={c.code} value={c.code}>
-                            {c.symbol} ({c.code})
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
-                        <ChevronDown className="h-4 w-4 text-gray-500" />
-                      </div>
-                    </div>
-                    {errors.currency_code && <p className="mt-1 text-sm text-red-600">{errors.currency_code}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
-                    <div className="relative">
-                      <select
-                        value={data.tax_rate_id}
-                        onChange={e => setData('tax_rate_id', Number(e.target.value))}
-                        className="w-full appearance-none px-4 py-3 pr-10 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {taxRates.map(t => (
-                          <option key={t.id} value={t.id}>
-                            {t.name} ({t.rate}%)
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
-                        <ChevronDown className="h-4 w-4 text-gray-500" />
-                      </div>
-                    </div>
-                    {errors.tax_rate_id && <p className="mt-1 text-sm text-red-600">{errors.tax_rate_id}</p>}
-                  </div>
-                </div>
-
-                {/* Upload d’images avec limite et message */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Images <span className="text-gray-500 text-xs">(max. 7 fichiers)</span>
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFiles}
-                    id="product-images"
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="product-images"
-                    className="flex justify-center items-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400"
-                  >
-                    <span className="text-gray-500">
-                      Cliquez ou déposez vos images ici (max. 7 fichiers)
-                    </span>
-                  </label>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Formats acceptés : JPG, PNG, WEBP. Taille max. 2 Mo par image.
-                  </p>
-                  {errors.images && (
-                    <p className="mt-1 text-sm text-red-600">{errors.images}</p>
-                  )}
-                </div>
-
-                {/* Aperçu des thumbnails */}
-                {previews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4">
-                    {previews.map((src, idx) => (
-                      <div key={idx} className="relative group">
-                        <img
-                          src={src}
-                          alt={`Preview ${idx + 1}`}
-                          className={`object-cover w-full h-32 rounded-lg border ${
-                            data.primary_image_index === idx
-                              ? 'border-blue-500'
-                              : 'border-gray-200'
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(idx)}
-                          className="absolute top-1 right-1 bg-white rounded-full p-1 shadow hover:bg-gray-100"
-                        >
-                          <X className="w-4 h-4 text-gray-600" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => choosePrimary(idx)}
-                          className={`absolute bottom-1 left-1 px-2 py-0.5 text-xs rounded-full ${
-                            data.primary_image_index === idx
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-white text-gray-600'
-                          } border`}
-                        >
-                          {data.primary_image_index === idx ? 'Principale' : 'Définir principale'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Stock & Statut */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Stock<span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={data.stock_quantity}
-                      onChange={e => setData('stock_quantity', Number(e.target.value))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                    {errors.stock_quantity && <p className="mt-1 text-sm text-red-600">{errors.stock_quantity}</p>}
-                  </div>
-                  <div className="flex items-center mt-6">
-                    <input
-                      id="is_active"
-                      type="checkbox"
-                      checked={data.is_active}
-                      onChange={e => setData('is_active', e.target.checked)}
-                      className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                    />
-                    <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
-                      Activer le produit
-                    </label>
-                    {errors.is_active && <p className="mt-1 text-sm text-red-600">{errors.is_active}</p>}
-                  </div>
-                </div>
-
-                {/* Boutons */}
-                <div className="flex justify-between">
-                  <Button
-                    type="button"
-                    onClick={() => history.back()}
-                    className="bg-gray-300 text-gray-800 hover:bg-gray-400 px-6 py-3 rounded-md"
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={processing}
-                    className="bg-gray-600 text-white hover:bg-gray-700 px-6 py-3 rounded-md"
-                  >
-                    {processing ? 'Création…' : 'Créer le produit'}
-                  </Button>
-                </div>
-
-              </form>
+          {Object.keys(errors).length > 0 && (
+            <div className="p-4 bg-red-100 text-red-700 rounded">
+              <strong>Erreur(s) dans le formulaire :</strong>
+              <ul className="list-disc list-inside mt-2 text-sm">
+                {Object.entries(errors).map(([field, message]) => (
+                  <li key={field}>{message}</li>
+                ))}
+              </ul>
             </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select value={data.brand_id} onValueChange={v => setData('brand_id', v)}>
+              <SelectTrigger><SelectValue placeholder="Marque" /></SelectTrigger>
+              <SelectContent>
+                {brands.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Modèle" value={data.model} onChange={e => setData('model', e.target.value)} />
           </div>
 
-          {/* Aide */}
-          <div className="col-span-12 lg:col-span-4 xl:col-span-5">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-medium mb-4">À propos des produits</h2>
-              <div className="prose max-w-none">
-                <p className="text-gray-600">
-                  Remplissez le formulaire pour ajouter un nouveau produit à votre catalogue.
-                </p>
-                <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-100 flex gap-3">
-                  <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <p className="text-sm text-blue-700">
-                    Vous pourrez modifier ou désactiver ce produit ultérieurement depuis la liste.
-                  </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input placeholder="Nom" required value={data.name} onChange={e => setData('name', e.target.value)} />
+            <Input placeholder="SKU" required value={data.sku} onChange={e => setData('sku', e.target.value)} />
+          </div>
+
+          <Textarea placeholder="Description" value={data.description} onChange={e => setData('description', e.target.value)} />
+
+          <Select value={String(data.category_id)} onValueChange={v => setData('category_id', Number(v))}>
+            <SelectTrigger><SelectValue placeholder="Catégorie" /></SelectTrigger>
+            <SelectContent>
+              {categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          {currentSlug && (
+            <DynamicFields slug={currentSlug as any} data={data.spec} setData={setSpecField} errors={errors.spec ?? {}} />
+          )}
+
+          {showCompat && (
+            <CompatibilityFields compatibilities={data.compatibilities} allProducts={allProducts} onChange={setCompatibilities} />
+          )}
+
+          <label className="cursor-pointer flex flex-col items-center justify-center py-8 border-2 border-dashed rounded-lg bg-gray-50 text-center">
+            <UploadCloud className="h-6 w-6 text-gray-400 mb-2" />
+            <p className="text-sm text-gray-500">Cliquez ou déposez vos images ici (max. 7)</p>
+            <input type="file" multiple className="hidden" onChange={handleFiles} />
+          </label>
+
+          <motion.div layout className="grid grid-cols-3 gap-4">
+            {previews.map((src, i) => (
+              <motion.div layout key={i} className="relative">
+                <img src={src} className="h-32 w-full object-cover rounded-lg" />
+                <Button variant="ghost" size="icon" className="absolute top-1 right-1" onClick={() => removeImage(i)}><X /></Button>
+                <Button type="button" onClick={() => choosePrimary(i)} className={`absolute bottom-1 left-1 px-2 py-0.5 text-xs rounded ${data.primary_image_index === i ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>
+                  {data.primary_image_index === i ? 'Principale' : 'Choisir'}
+                </Button>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input type="number" step="0.01" placeholder="Prix" required value={data.price} onChange={e => setData('price', e.target.value)} />
+            <Select value={data.currency_code} onValueChange={v => setData('currency_code', v)}>
+              <SelectTrigger><SelectValue placeholder="Devise" /></SelectTrigger>
+              <SelectContent>
+                {currencies.map(c => <SelectItem key={c.code} value={c.code}>{c.symbol} ({c.code})</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={String(data.tax_rate_id)} onValueChange={v => setData('tax_rate_id', Number(v))}>
+              <SelectTrigger><SelectValue placeholder="TVA" /></SelectTrigger>
+              <SelectContent>
+                {taxRates.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name} ({t.rate}%)</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="flex items-center space-x-2">
+              <label htmlFor="stock_quantity" className="text-sm text-gray-700">Stock</label>
+              <Input id="stock_quantity" type="number" min={0} required value={data.stock_quantity} onChange={e => setData('stock_quantity', Number(e.target.value))} className="w-40" />
+            </div>
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={data.is_active} onChange={e => setData('is_active', e.target.checked)} />
+              <span className="text-sm">Activer</span>
+            </label>
+          </div>
+
+          <div className="flex justify-between">
+            <Button type="button" onClick={() => history.back()} variant="secondary">Annuler</Button>
+            <Button type="submit" disabled={processing}>{processing ? 'Création…' : 'Créer le produit'}</Button>
+          </div>
+        </form>
+
+        <aside className="lg:col-span-4 xl:col-span-5 p-6 bg-white rounded-lg shadow-sm space-y-6">
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium">Guide de création</h2>
+            <p className="text-gray-600">Commencez par remplir les informations de base du produit. Une fois la catégorie sélectionnée, des champs spécialisés apparaîtront automatiquement.</p>
+          </div>
+
+          {currentCategory && (
+            <div className="space-y-4 border-t pt-6">
+              <h3 className="font-medium">À propos de la catégorie : {currentCategory.name}</h3>
+              <div className="flex gap-2 items-start bg-blue-50 p-4 rounded-lg">
+                <Info className="w-5 h-5 shrink-0 text-blue-600" />
+                <div className="space-y-2 text-sm text-blue-900">
+                  <p>Les champs spécialisés s'affichent en fonction de la catégorie sélectionnée.</p>
+                  {showCompat && (
+                    <p>Pour les composants, les compatibilités sont toujours unidirectionnelles vers les machines (serveurs, ordinateurs de bureau, portables).</p>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-
-        </div>
-      </AppLayout>
-    </>
+          )}
+        </aside>
+      </div>
+    </AppLayout>
   )
 }

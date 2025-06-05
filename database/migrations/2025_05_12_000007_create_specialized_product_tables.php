@@ -34,7 +34,6 @@ return new class extends Migration
         Schema::create('processors', function (Blueprint $table) {
             $table->uuid('product_id')->primary();
 
-            $table->string('brand');
             $table->string('model');
             $table->string('socket');
             $table->unsignedTinyInteger('cores');

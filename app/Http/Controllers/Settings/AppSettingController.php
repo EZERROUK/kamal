@@ -17,12 +17,20 @@ class AppSettingController extends Controller
     public function edit(): Response
     {
         $settings = AppSetting::first();
+
         if (!$settings) {
-            $settings = AppSetting::create(['app_name' => 'X-Zone']);
+            $settings = AppSetting::create(['app_name' => 'X-ZPanel']);
         }
 
         return Inertia::render('settings/app', [
-            'settings' => $settings,
+            'settings' => array_merge(
+                $settings->toArray(),
+                [
+                    'logo_url'       => $settings->logo_url,
+                    'logo_dark_url'  => $settings->logo_dark_url,
+                    'favicon_url'    => $settings->favicon_url,
+                ]
+            ),
         ]);
     }
 
@@ -50,43 +58,35 @@ class AppSettingController extends Controller
 
         $settings = AppSetting::firstOrFail();
 
-        // Initialize ImageManager with GD driver
         $manager = new ImageManager(new Driver());
 
-        // LOGO PRINCIPAL
         if ($request->hasFile('logo')) {
             $logoPath = $request->file('logo')->store('logos', 'public');
             $data['logo_path'] = $logoPath;
 
-            // Générer le favicon à partir du logo si non fourni
             if (!$request->hasFile('favicon')) {
-                // Read the image file
                 $img = $manager->read($request->file('logo')->getPathname());
-
-                // Resize the image (fixed method call)
                 $img->resize(48, 48);
-
-                // Encode to PNG using the proper encoder
                 $encodedImage = $img->encode(new PngEncoder());
-
-                // Save the image
                 $faviconPath = 'favicons/' . uniqid() . '.png';
                 Storage::disk('public')->put($faviconPath, $encodedImage);
                 $data['favicon_path'] = $faviconPath;
             }
         }
 
-        // LOGO DARK (optionnel)
         if ($request->hasFile('logo_dark')) {
             $data['logo_dark_path'] = $request->file('logo_dark')->store('logos', 'public');
         }
 
-        // FAVICON MANUEL (prioritaire)
         if ($request->hasFile('favicon')) {
-            $data['favicon_path'] = $request->file('favicon')->store('favicons', 'public');
+            $file = $request->file('favicon');
+            $filename = 'favicon.png';
+            $path = 'favicons/' . $filename;
+            Storage::disk('public')->putFileAs('favicons', $file, $filename);
+            copy(storage_path('app/public/' . $path), public_path($filename));
+            $data['favicon_path'] = $path;
         }
 
-        // Réseaux sociaux
         if ($request->filled('social_links')) {
             $data['social_links'] = json_encode($request->input('social_links'));
         }

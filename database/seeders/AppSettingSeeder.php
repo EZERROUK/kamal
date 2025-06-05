@@ -10,12 +10,12 @@ class AppSettingSeeder extends Seeder
     public function run()
     {
         AppSetting::firstOrCreate([
-            'app_name' => 'X-Zone',
-            'app_slogan' => 'Technologie',
+            'app_name' => 'X-ZPanel',
+            'app_slogan' => 'X-ZPanel',
             'primary_color' => '#6366f1',
             'secondary_color' => '#f59e42',
-            'contact_email' => 'contact@x-zone.com',
-            'copyright' => '© 2024 X-Zone.',
+            'contact_email' => 'contact@x-zone.ma',
+            'copyright' => '© 2025 X-Zone.',
         ]);
     }
 }

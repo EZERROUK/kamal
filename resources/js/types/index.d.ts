@@ -6,7 +6,7 @@ import type { Config } from 'ziggy-js'
 
 /* ---------- Navigation / Layout --------------------------------- */
 export interface BreadcrumbItem { title: string; href: string }
-export interface NavItem {
+export interface NavItem   {
   title: string
   href?: string
   icon?: LucideIcon | null
@@ -15,22 +15,22 @@ export interface NavItem {
 }
 export interface NavGroup { title: string; items: NavItem[] }
 
-/* ---------- TaxRates ---------------------------------- */
+/* ---------- TaxRates -------------------------------------------- */
 export interface TaxRate {
-  id: number;
-  name: string;
-  rate: number;
-   created_at: string
+  id: number
+  name: string
+  rate: number
+  created_at: string
   updated_at: string
   deleted_at: string | null
 }
 
-/* ---------- Currencies ---------------------------------- */
+/* ---------- Currencies ------------------------------------------ */
 export interface Currency {
   id: number
   name: string
-  code: string   // e.g. EUR, USD, MAD
-  symbol: string // e.g. €, $, د.م.
+  code: string          // ex : EUR, USD
+  symbol: string        // ex : €, $
   deleted_at?: string | null
   created_at?: string
   updated_at?: string
@@ -62,7 +62,7 @@ export interface SharedData {
 }
 export type PageProps<T = unknown> = SharedData & T
 
-/* ---------- Catalogue ------------------------------------------ */
+/* ---------- Catalogue ------------------------------------------- */
 export interface Category {
   id: number
   name: string
@@ -72,6 +72,60 @@ export interface Category {
   updated_at?: string
 }
 
+export interface AppSettings {
+  app_name: string
+  app_slogan?: string
+  logo_path?: string
+  logo_dark_path?: string
+  favicon_path?: string
+  primary_color?: string
+  secondary_color?: string
+  contact_email?: string
+  contact_phone?: string
+  contact_address?: string
+  cgu_url?: string
+  privacy_url?: string
+  copyright?: string
+  social_links?: string[] | null
+  meta_keywords?: string
+  meta_description?: string
+
+  // URLs calculées côté backend
+  logo_url?: string
+  logo_dark_url?: string
+  favicon_url?: string
+}
+
+export interface ProductImage {
+  id: number
+  product_id: string
+  path: string
+  is_primary: boolean
+  deleted_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+/* --- Compatibilités -------------------------------------------- */
+export interface ProductCompatibilityPivot {
+  direction: 'bidirectional' | 'uni'
+  note: string | null
+}
+
+export interface CompatibilityItem {
+  id: string
+  name: string
+  direction: 'bidirectional' | 'uni'
+  note: string | null
+}
+
+export interface CompatibilityEntry {
+  compatible_with_id: string
+  direction?: 'bidirectional' | 'uni'
+  note?: string
+}
+
+/* --- Produit principal ----------------------------------------- */
 export interface Product {
   id: string
   sku: string
@@ -86,5 +140,19 @@ export interface Product {
   deleted_at?: string | null
   created_at?: string
   updated_at?: string
-  [key: string]: unknown           // pour champs spécialisés
+
+  /* relations éventuellement chargées */
+  compatible_with?: Array<{
+    id: string
+    name: string
+    pivot: ProductCompatibilityPivot
+  }>
+  is_compatible_with?: Array<{
+    id: string
+    name: string
+    pivot: ProductCompatibilityPivot
+  }>
+
+  /* spécialisations dynamiques (ram, processor, …) */
+  [key: string]: unknown
 }

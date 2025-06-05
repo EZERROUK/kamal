@@ -20,8 +20,10 @@ class ProcessorFactory extends Factory
         $threads = $cores * 2;
 
         return [
-            'brand'               => $brand,
-            'model'               => $brand.' '.$this->faker->bothify('##??'),
+            'model'               => $this->faker->randomElement([
+                'i3-12100F', 'i5-12400', 'i5-13400F', 'i7-13700K', 'i9-13900K',
+                'Ryzen 5 5600X', 'Ryzen 7 5800X3D', 'Ryzen 9 7950X', 'Ryzen 9 7900X3D'
+            ]),
             'socket'              => $socket,
             'cores'               => $cores,
             'threads'             => $threads,

@@ -4,21 +4,31 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Category;
-use Illuminate\Support\Str;
 
 class CategorySeeder extends Seeder
 {
     public function run(): void
     {
         $categories = [
-            'rams', 'processors', 'hard_drives', 'power_supplies', 'motherboards',
-            'network_cards', 'graphic_cards', 'licenses', 'softwares', 'accessories'
+            'rams' => 'Mémoire vive',
+            'processors' => 'Processeurs',
+            'hard_drives' => 'Disques durs',
+            'power_supplies' => 'Alimentations',
+            'motherboards' => 'Cartes mères',
+            'network_cards' => 'Cartes réseau',
+            'graphic_cards' => 'Cartes graphiques',
+            'licenses' => 'Licences',
+            'softwares' => 'Logiciels',
+            'accessories' => 'Accessoires',
+            'laptops' => 'Ordinateurs portables',
+            'desktops' => 'Ordinateurs de bureau',
+            'servers' => 'Serveurs',
         ];
 
-        foreach ($categories as $name) {
+        foreach ($categories as $slug => $name) {
             Category::firstOrCreate(
-                ['slug' => $name],
-                ['name' => Str::title(str_replace('_', ' ', $name))]
+                ['slug' => $slug],
+                ['name' => $name]
             );
         }
     }

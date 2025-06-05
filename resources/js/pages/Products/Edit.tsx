@@ -1,14 +1,32 @@
-// resources/js/Pages/Products/Edit.tsx
-import React, { useState, useEffect } from 'react'
-import { Head, useForm, Link, router } from '@inertiajs/react'
-import { Button } from '@/components/ui/button'
-import AppLayout from '@/layouts/app-layout'
-import { X, Trash2 } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { Head, useForm, router } from '@inertiajs/react'
 import { route } from 'ziggy-js'
-import { PageProps, Category, Currency, TaxRate, Product, ProductImage } from '@/types'
+import axios from 'axios'
+import { Info, UploadCloud, X, Trash2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 
+import AppLayout from '@/layouts/app-layout'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import DynamicFields from './Partials/DynamicFields'
+import CompatibilityFields, { CompatibilityEntry } from './Partials/CompatibilityFields'
+
+import type {
+  PageProps, Category, Currency, TaxRate,
+  Product, ProductImage,
+} from '@/types'
+
+/* ------------------------------------------------------------------ */
+/* Types & helpers                                                    */
+/* ------------------------------------------------------------------ */
 interface FormData {
+  brand_id: string
   name: string
+  model: string
   sku: string
   description: string
   price: string
@@ -17,376 +35,313 @@ interface FormData {
   tax_rate_id: number
   category_id: number
   is_active: boolean
+
   images: File[]
+  primary_image_index: number
   deleted_image_ids: number[]
   restored_image_ids: number[]
-  primary_image_index: number
+
+  compatibilities: CompatibilityEntry[]
+  spec: Record<string, any>
 }
 
 interface Props extends PageProps<{
   product: Product & { images: ProductImage[] }
+  brands: { id: number; name: string }[]
   categories: Category[]
   currencies: Currency[]
   taxRates: TaxRate[]
+  compatibilities: CompatibilityEntry[]
 }> {}
 
-export default function EditProduct({ product, categories, currencies, taxRates }: Props) {
-  const { data, setData, patch, processing, errors } = useForm<FormData>({
+/* ------------------------------------------------------------------ */
+/* Component                                                          */
+/* ------------------------------------------------------------------ */
+export default function EditProduct({
+  product,
+  brands,
+  categories,
+  currencies,
+  taxRates,
+  compatibilities: initialCompat,
+}: Props) {
+  /* ------------ Catégorie & slug courant ------------------------- */
+  const currentCat = categories.find(c => c.id === product.category?.id)
+  const currentSlug = currentCat?.slug ?? ''
+
+  /* ------------ donne accès au singulier (graphic_card, etc.) ----- */
+  const singularSlug = currentSlug.endsWith('ies')
+    ? currentSlug.slice(0, -3) + 'y'
+    : currentSlug.endsWith('s')
+      ? currentSlug.slice(0, -1)
+      : currentSlug
+
+  const initialSpec =
+    (product as any)[currentSlug] ?? (product as any)[singularSlug] ?? {}
+
+  /* ------------ useForm ------------------------------------------ */
+  const firstPrimary = Math.max(0, product.images.findIndex(i => i.is_primary))
+
+  const { data, setData, processing, errors } = useForm<FormData>({
+    brand_id: String(product.brand?.id ?? ''),
     name: product.name,
+    model: product.model ?? '',
     sku: product.sku,
     description: product.description ?? '',
     price: product.price.toString(),
     stock_quantity: product.stock_quantity,
-    currency_code: product.currency_code ?? (currencies[0]?.code ?? ''),
-    tax_rate_id: product.tax_rate_id ?? (taxRates[0]?.id ?? 0),
-    category_id: product.category_id ?? (categories[0]?.id ?? 0),
+    currency_code: product.currency?.code ?? currencies[0]?.code ?? '',
+    tax_rate_id: product.tax_rate?.id ?? taxRates[0]?.id ?? 0,
+    category_id: product.category?.id ?? 0,
     is_active: !product.deleted_at,
     images: [],
+    primary_image_index: firstPrimary,
     deleted_image_ids: [],
     restored_image_ids: [],
-    primary_image_index: product.images.findIndex(img => img.is_primary) ?? 0,
+    compatibilities: initialCompat,
+    spec: initialSpec,
   })
 
-  const [previewImages, setPreviewImages] = useState<string[]>([])
-  const [existingImages, setExistingImages] = useState<ProductImage[]>(product.images)
+  /* ------------ Slug machine & affichage compat ------------------ */
+  const machineSlugs = ['servers', 'desktops', 'laptops']
+  const showCompat = currentSlug && !machineSlugs.includes(currentSlug)
 
+  /* ------------ Liste produits cible ----------------------------- */
+  const [allProducts, setAllProducts] = useState<{ id: string; name: string }[]>([])
   useEffect(() => {
-    return () => {
-      previewImages.forEach(url => URL.revokeObjectURL(url))
-    }
-  }, [previewImages])
+    axios.get(route('products.compatible-list')).then(r => setAllProducts(r.data))
+  }, [])
 
-  function onImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+  /* ------------ Gestion images ----------------------------------- */
+  const [previews, setPreviews] = useState<string[]>([])
+  const [existing, setExisting] = useState<ProductImage[]>(product.images)
+
+  useEffect(() => () => previews.forEach(URL.revokeObjectURL), [previews])
+
+  const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return
-    const filesArray = Array.from(e.target.files)
-    setData('images', [...data.images, ...filesArray])
-
-    const newPreviews = filesArray.map(file => URL.createObjectURL(file))
-    setPreviewImages(prev => [...prev, ...newPreviews])
+    const files = Array.from(e.target.files).slice(0, 7)
+    setData('images', [...data.images, ...files])
+    setPreviews(p => [...p, ...files.map(f => URL.createObjectURL(f))])
   }
 
-  function removePreviewImage(index: number) {
-    setData('images', data.images.filter((_, i) => i !== index))
-    setPreviewImages(previewImages.filter((_, i) => i !== index))
-
-    // Ajuster primary_image_index si nécessaire
-    if (data.primary_image_index === index) {
-      setData('primary_image_index', 0)
-    } else if (data.primary_image_index > index) {
+  const removePreview = (idx: number) => {
+    setData('images', data.images.filter((_, i) => i !== idx))
+    setPreviews(previews.filter((_, i) => i !== idx))
+    if (data.primary_image_index === idx) setData('primary_image_index', 0)
+    else if (data.primary_image_index > idx)
       setData('primary_image_index', data.primary_image_index - 1)
-    }
   }
 
-  function toggleExistingImage(imageId: number) {
-    const isDeleted = data.deleted_image_ids.includes(imageId)
+  const toggleExisting = (id: number) => {
+    const isDeleted = data.deleted_image_ids.includes(id)
     if (isDeleted) {
-      // Restaurer
-      setData('deleted_image_ids', data.deleted_image_ids.filter(id => id !== imageId))
-      setData('restored_image_ids', [...data.restored_image_ids, imageId])
-      setExistingImages(prev => prev.map(img => img.id === imageId ? { ...img, deleted_at: null } : img))
+      setData('deleted_image_ids', data.deleted_image_ids.filter(i => i !== id))
+      setData('restored_image_ids', [...data.restored_image_ids, id])
+      setExisting(imgs => imgs.map(img => img.id === id ? { ...img, deleted_at: null } : img))
     } else {
-      // Supprimer
-      setData('deleted_image_ids', [...data.deleted_image_ids, imageId])
-      setData('restored_image_ids', data.restored_image_ids.filter(id => id !== imageId))
-      setExistingImages(prev => prev.map(img => img.id === imageId ? { ...img, deleted_at: new Date().toISOString() } : img))
+      setData('deleted_image_ids', [...data.deleted_image_ids, id])
+      setData('restored_image_ids', data.restored_image_ids.filter(i => i !== id))
+      setExisting(imgs => imgs.map(img => img.id === id ? { ...img, deleted_at: '1' } : img))
     }
   }
 
-  function setPrimary(index: number) {
-    setData('primary_image_index', index)
+  const setPrimary = (globalIdx: number) => setData('primary_image_index', globalIdx)
+
+  /* ------------ Champs dynamiques / compat ------------------------ */
+  const setSpecField = (field: string, value: any) =>
+    setData('spec', { ...(data.spec ?? {}), [field]: value })
+
+  const setCompat = (list: CompatibilityEntry[]) => {
+    setData('compatibilities', list)
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  /* ------------ Submit ------------------------------------------- */
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    patch(route('products.update', product.id), {
-      onSuccess: () => router.visit(route('products.show', product.id))
-    })
+    try {
+      await router.post(
+        route('products.update', product.id),
+        { ...data, _method: 'PATCH' },
+        {
+          forceFormData: true,
+          preserveScroll: true, // Keep scroll position
+          preserveState: true   // Keep form state
+        }
+      )
+    } catch (error) {
+      console.error('Error updating product:', error)
+    }
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Render                                                           */
+  /* ---------------------------------------------------------------- */
   return (
-    <>
-      <Head title={`Modifier produit — ${product.name}`} />
-      <AppLayout
-        breadcrumbs={[
-          { title: 'Dashboard', href: '/dashboard' },
-          { title: 'Produits', href: '/products' },
-          { title: product.name, href: route('products.show', product.id) },
-          { title: 'Modifier', href: route('products.edit', product.id) },
-        ]}
-      >
-        <div className="p-6 grid grid-cols-12 gap-6">
-          {/* Formulaire gauche */}
-          <div className="col-span-12 lg:col-span-8 xl:col-span-7 bg-white rounded-lg shadow-sm p-6">
-            <h1 className="text-xl font-semibold mb-6">Modifier le produit</h1>
-            <form onSubmit={handleSubmit} className="space-y-6">
+    <AppLayout breadcrumbs={[
+      { title: 'Produits', href: '/products' },
+      { title: product.name, href: route('products.show', product.id) },
+      { title: 'Modifier' },
+    ]}>
+      <Head title={`Modifier — ${product.name}`} />
 
-              {/* Nom et SKU */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={data.name}
-                    onChange={e => setData('name', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    SKU <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={data.sku}
-                    onChange={e => setData('sku', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  {errors.sku && <p className="text-sm text-red-600 mt-1">{errors.sku}</p>}
-                </div>
-              </div>
+      <div className="grid grid-cols-12 gap-6 p-6">
+        {/* ------------------ Formulaire --------------------------- */}
+        <form
+          onSubmit={handleSubmit}
+          className="lg:col-span-8 xl:col-span-7 p-6 space-y-6 bg-white rounded-lg shadow-sm"
+        >
+          <h1 className="text-2xl font-semibold">Modifier le produit</h1>
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  rows={4}
-                  value={data.description}
-                  onChange={e => setData('description', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors.description && <p className="text-sm text-red-600 mt-1">{errors.description}</p>}
-              </div>
-
-              {/* Catégorie */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select
-                  value={data.category_id}
-                  onChange={e => setData('category_id', Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                {errors.category_id && <p className="text-sm text-red-600 mt-1">{errors.category_id}</p>}
-              </div>
-
-              {/* Prix, devise, TVA */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prix <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={data.price}
-                    onChange={e => setData('price', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  {errors.price && <p className="text-sm text-red-600 mt-1">{errors.price}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-                  <select
-                    value={data.currency_code}
-                    onChange={e => setData('currency_code', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {currencies.map(c => (
-                      <option key={c.code} value={c.code}>
-                        {c.symbol} ({c.code})
-                      </option>
-                    ))}
-                  </select>
-                  {errors.currency_code && <p className="text-sm text-red-600 mt-1">{errors.currency_code}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
-                  <select
-                    value={data.tax_rate_id}
-                    onChange={e => setData('tax_rate_id', Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {taxRates.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.rate}%)
-                      </option>
-                    ))}
-                  </select>
-                  {errors.tax_rate_id && <p className="text-sm text-red-600 mt-1">{errors.tax_rate_id}</p>}
-                </div>
-              </div>
-
-              {/* Stock & statut */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Stock <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={data.stock_quantity}
-                    onChange={e => setData('stock_quantity', Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 shadow-sm focus:ring focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  {errors.stock_quantity && <p className="text-sm text-red-600 mt-1">{errors.stock_quantity}</p>}
-                </div>
-                <div className="flex items-center mt-6">
-                  <input
-                    id="is_active"
-                    type="checkbox"
-                    checked={data.is_active}
-                    onChange={e => setData('is_active', e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
-                    Activer le produit
-                  </label>
-                  {errors.is_active && <p className="text-sm text-red-600 mt-1">{errors.is_active}</p>}
-                </div>
-              </div>
-
-              {/* Boutons */}
-              <div className="flex justify-between mt-6">
-                <Button
-                  type="button"
-                  onClick={() => history.back()}
-                  className="bg-gray-300 text-gray-800 hover:bg-gray-400 px-6 py-3 rounded-md"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={processing}
-                  className="bg-gray-600 text-white hover:bg-gray-700 px-6 py-3 rounded-md"
-                >
-                  {processing ? 'Sauvegarde…' : 'Sauvegarder'}
-                </Button>
-              </div>
-
-            </form>
+          {/* Marque + Modèle */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select value={data.brand_id} onValueChange={v => setData('brand_id', v)}>
+              <SelectTrigger><SelectValue placeholder="Marque" /></SelectTrigger>
+              <SelectContent>
+                {brands.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Modèle" value={data.model} onChange={e => setData('model', e.target.value)} />
           </div>
 
-          {/* Galerie droite */}
-          <div className="col-span-12 lg:col-span-4 xl:col-span-5 bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-medium mb-4">Galerie d'images</h2>
+          {/* Nom + SKU */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input placeholder="Nom" required value={data.name} onChange={e => setData('name', e.target.value)} />
+            <Input placeholder="SKU" required value={data.sku} onChange={e => setData('sku', e.target.value)} />
+          </div>
 
-            {/* Upload d’images */}
-            <div>
-              <label
-                htmlFor="product-images"
-                className="flex justify-center items-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 mb-6"
-              >
-                <span className="text-gray-500">Cliquez ou déposez vos images ici</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={onImageChange}
-                id="product-images"
-                className="hidden"
-              />
+          {/* Description */}
+          <Textarea placeholder="Description" value={data.description} onChange={e => setData('description', e.target.value)} />
+
+          {/* Catégorie (lecture seule) */}
+          <Select value={String(data.category_id)} disabled>
+            <SelectTrigger><SelectValue placeholder="Catégorie" /></SelectTrigger>
+            <SelectContent>
+              {categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          {/* Champs spécialisés */}
+          {currentSlug && (
+            <DynamicFields
+              slug={currentSlug as any}
+              data={data.spec}
+              setData={setSpecField}
+              errors={errors.spec ?? {}}
+            />
+          )}
+
+          {/* Compatibilités (invisible pour Desktop/Laptop/Server) */}
+          {showCompat && (
+            <CompatibilityFields
+              compatibilities={data.compatibilities}
+              allProducts={allProducts}
+              onChange={setCompat}
+            />
+          )}
+
+          {/* Upload images */}
+          <label className="cursor-pointer flex justify-center items-center py-8 border-2 border-dashed rounded-lg">
+            <UploadCloud className="h-6 w-6 text-gray-400" />
+            <input type="file" multiple className="hidden" onChange={addFiles} />
+          </label>
+
+          {/* Pré-vues nouvelles */}
+          {previews.length > 0 && (
+            <motion.div layout className="grid grid-cols-3 gap-4">
+              {previews.map((src, i) => (
+                <motion.div layout key={`new-${i}`} className="relative">
+                  <img src={src} className="h-32 w-full object-cover rounded-lg" />
+                  <Button type="button" size="icon" variant="ghost" className="absolute top-1 right-1" onClick={() => removePreview(i)}><X /></Button>
+                  <Button type="button" onClick={() => setPrimary(i)} className={`absolute bottom-1 left-1 px-2 py-0.5 text-xs rounded ${data.primary_image_index === i ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>
+                    {data.primary_image_index === i ? 'Principale' : 'Choisir'}
+                  </Button>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* Images existantes */}
+          {existing.length > 0 && (
+            <>
+              <h3 className="text-sm font-medium">Images existantes</h3>
+              <motion.div layout className="grid grid-cols-3 gap-4">
+                {existing.map((img, idx) => {
+                  const globalIdx = previews.length + idx
+                  const isDel = !!img.deleted_at
+                  return (
+                    <motion.div layout key={img.id} className={`relative border rounded-lg overflow-hidden ${isDel ? 'opacity-60 border-red-400' : 'border-gray-300'}`}>
+                      <img src={`/storage/${img.path}`} className="h-32 w-full object-cover" />
+                      <Button type="button" size="icon" variant="ghost" className={`absolute top-1 right-1 ${isDel ? 'text-green-600' : 'text-red-600'}`} onClick={() => toggleExisting(img.id)}>{isDel ? <X /> : <Trash2 />}</Button>
+                      <Button type="button" onClick={() => setPrimary(globalIdx)} className={`absolute bottom-1 left-1 px-2 py-0.5 text-xs rounded ${data.primary_image_index === globalIdx ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>
+                        {data.primary_image_index === globalIdx ? 'Principale' : 'Choisir'}
+                      </Button>
+                    </motion.div>
+                  )
+                })}
+              </motion.div>
+            </>
+          )}
+
+          {/* Prix / devise / TVA */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input type="number" step="0.01" placeholder="Prix" required value={data.price} onChange={e => setData('price', e.target.value)} />
+            <Select value={data.currency_code} onValueChange={v => setData('currency_code', v)}>
+              <SelectTrigger><SelectValue placeholder="Devise" /></SelectTrigger>
+              <SelectContent>
+                {currencies.map(c => <SelectItem key={c.code} value={c.code}>{c.symbol} ({c.code})</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={String(data.tax_rate_id)} onValueChange={v => setData('tax_rate_id', Number(v))}>
+              <SelectTrigger><SelectValue placeholder="TVA" /></SelectTrigger>
+              <SelectContent>
+                {taxRates.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name} ({t.rate}%)</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Stock + actif */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center space-x-2">
+              <label htmlFor="stock_quantity" className="text-sm text-gray-700">Stock</label>
+              <Input id="stock_quantity" type="number" min={0} required value={data.stock_quantity} onChange={e => setData('stock_quantity', Number(e.target.value))} className="w-40" />
             </div>
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" checked={data.is_active} onChange={e => setData('is_active', e.target.checked)} />
+              <span className="text-sm">Activer</span>
+            </label>
+          </div>
 
-            {/* Preview des images uploadées */}
-            {previewImages.length > 0 && (
-              <div className="grid grid-cols-4 gap-3 mb-6">
-                {previewImages.map((src, idx) => (
-                  <div key={idx} className="relative rounded-lg overflow-hidden border border-gray-300 group">
-                    <img
-                      src={src}
-                      alt={`Preview ${idx + 1}`}
-                      className="w-full h-24 object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removePreviewImage(idx)}
-                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                      aria-label="Supprimer cette image"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPrimary(idx)}
-                      className={`absolute bottom-1 left-1 bg-blue-600 text-white rounded-full px-2 py-0.5 text-xs ${
-                        data.primary_image_index === idx ? 'opacity-100' : 'opacity-50 hover:opacity-80'
-                      }`}
-                      aria-label="Définir comme image principale"
-                    >
-                      Principale
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Boutons */}
+          <div className="flex justify-between">
+            <Button type="button" onClick={() => history.back()} variant="secondary">Annuler</Button>
+            <Button type="submit" disabled={processing}>{processing ? 'Sauvegarde…' : 'Enregistrer'}</Button>
+          </div>
+        </form>
 
-            {/* Images existantes */}
-            {existingImages.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Images existantes</h3>
-                <div className="grid grid-cols-4 gap-3">
-                  {existingImages.map((img, idx) => {
-                    const isDeleted = !!img.deleted_at
-                    return (
-                      <div
-                        key={img.id}
-                        className={`relative rounded-lg overflow-hidden border ${
-                          isDeleted ? 'border-red-500 opacity-50' : 'border-gray-300'
-                        } group`}
-                      >
-                        <img
-                          src={`/storage/${img.path}`}
-                          alt={`Image ${idx + 1}`}
-                          className="w-full h-24 object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => toggleExistingImage(img.id)}
-                          className={`absolute top-1 right-1 rounded-full p-1 ${
-                            isDeleted ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-                          } opacity-0 group-hover:opacity-100 transition`}
-                          aria-label={isDeleted ? 'Restaurer l’image' : 'Supprimer l’image'}
-                        >
-                          {isDeleted ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h14M9 6h6m-7 8h8m-8 4h8" />
-                            </svg>
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPrimary(existingImages.findIndex(i => i.id === img.id) + previewImages.length)}
-                          className={`absolute bottom-1 left-1 bg-blue-600 text-white rounded-full px-2 py-0.5 text-xs ${
-                            data.primary_image_index === (idx + previewImages.length) ? 'opacity-100' : 'opacity-50 hover:opacity-80'
-                          }`}
-                          aria-label="Définir comme image principale"
-                        >
-                          Principale
-                        </button>
-                      </div>
-                    )
-                  })}
+        {/* ------------------ Aside ------------------------------- */}
+        <aside className="lg:col-span-4 xl:col-span-5 p-6 bg-white rounded-lg shadow-sm space-y-6">
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium">Guide d'édition</h2>
+            <p className="text-gray-600">Modifiez les informations du produit puis enregistrez ; vous pourrez revenir en arrière.</p>
+          </div>
+
+          {currentCat && (
+            <div className="space-y-4 border-t pt-6">
+              <h3 className="font-medium">À propos de la catégorie : {currentCat.name}</h3>
+              <div className="flex gap-2 items-start bg-blue-50 p-4 rounded-lg">
+                <Info className="w-5 h-5 shrink-0 text-blue-600" />
+                <div className="space-y-2 text-sm text-blue-900">
+                  <p>Les champs spécialisés s'affichent en fonction de la catégorie sélectionnée.</p>
+                  {showCompat && (
+                    <p>Pour les composants, les compatibilités sont toujours unidirectionnelles vers les machines (serveurs, ordinateurs de bureau, portables).</p>
+                  )}
                 </div>
               </div>
-            )}
-
-          </div>
-        </div>
-      </AppLayout>
-    </>
+            </div>
+          )}
+        </aside>
+      </div>
+    </AppLayout>
   )
 }
