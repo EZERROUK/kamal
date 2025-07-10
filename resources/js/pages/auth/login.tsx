@@ -174,8 +174,8 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* Footer */}
-          <div className="col-span-full border-t border-slate-200 dark:border-slate-700 bg-white text-center text-sm text-slate-500 dark:bg-white/5 dark:text-slate-300 py-4">
-            Conception et Développement par{' '}
+        <div className="col-span-full border-t border-slate-200 dark:border-slate-700 bg-white text-center text-sm text-slate-500 dark:bg-white/5 dark:text-slate-300 py-4 px-4">
+    Conception et Développement par{' '}
             <a
               href="https://globalglimpse.ma"
               target="_blank"

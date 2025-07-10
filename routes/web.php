@@ -16,6 +16,9 @@ use App\Http\Controllers\{
     CurrencyController,
     AppSettingController,
     AuditLogController,
+    StockMovementController,
+    ProviderController,
+    StockMovementReasonController,
 };
 use Spatie\Activitylog\Models\Activity;
 
@@ -75,6 +78,53 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('/{id}/restore',        [ProductController::class, 'restore'    ])->middleware('permission:product_restore')->name('restore');
         Route::delete('/{id}/force-delete', [ProductController::class, 'forceDelete'])->middleware('permission:product_delete')->name('force-delete');
+    });
+
+    /* ------------------------------------------------------------------ */
+    /* Gestion de Stock                                                   */
+    /* ------------------------------------------------------------------ */
+    Route::prefix('stock-movements')->name('stock-movements.')->group(function () {
+        Route::get('/',                [StockMovementController::class, 'index'  ])->middleware('permission:stock_list'  )->name('index');
+        Route::get('/create',          [StockMovementController::class, 'create' ])->middleware('permission:stock_create')->name('create');
+        Route::post('/',               [StockMovementController::class, 'store'  ])->middleware('permission:stock_create')->name('store');
+        Route::get('/report',          [StockMovementController::class, 'report' ])->middleware('permission:stock_list'  )->name('report');
+        Route::get('/export',          [StockMovementController::class, 'export' ])->middleware('permission:stock_list'  )->name('export');
+
+        Route::get('/{stockMovement}',      [StockMovementController::class, 'show'   ])->middleware('permission:stock_list'  )->name('show');
+        Route::get('/{stockMovement}/edit', [StockMovementController::class, 'edit'   ])->middleware('permission:stock_edit'  )->name('edit');
+        Route::patch('/{stockMovement}',    [StockMovementController::class, 'update' ])->middleware('permission:stock_edit'  )->name('update');
+        Route::delete('/{stockMovement}',   [StockMovementController::class, 'destroy'])->middleware('permission:stock_delete')->name('destroy');
+
+        Route::post('/{id}/restore',        [StockMovementController::class, 'restore'])->middleware('permission:stock_edit'  )->name('restore');
+        Route::delete('/{id}/force-delete', [StockMovementController::class, 'forceDelete'])->middleware('permission:stock_delete')->name('force-delete');
+    });
+
+    /* ------------------------------------------------------------------ */
+    /* Fournisseurs                                                       */
+    /* ------------------------------------------------------------------ */
+    Route::prefix('providers')->name('providers.')->group(function () {
+        Route::get('/',                [ProviderController::class, 'index'  ])->middleware('permission:stock_list'  )->name('index');
+        Route::get('/create',          [ProviderController::class, 'create' ])->middleware('permission:stock_create')->name('create');
+        Route::post('/',               [ProviderController::class, 'store'  ])->middleware('permission:stock_create')->name('store');
+        Route::get('/{provider}',      [ProviderController::class, 'show'   ])->middleware('permission:stock_list'  )->name('show');
+        Route::get('/{provider}/edit', [ProviderController::class, 'edit'   ])->middleware('permission:stock_edit'  )->name('edit');
+        Route::patch('/{provider}',    [ProviderController::class, 'update' ])->middleware('permission:stock_edit'  )->name('update');
+        Route::delete('/{provider}',   [ProviderController::class, 'destroy'])->middleware('permission:stock_delete')->name('destroy');
+        Route::post('/{id}/restore',   [ProviderController::class, 'restore'])->middleware('permission:stock_edit'  )->name('restore');
+    });
+
+    /* ------------------------------------------------------------------ */
+    /* Motifs de mouvements de stock                                      */
+    /* ------------------------------------------------------------------ */
+    Route::prefix('stock-movement-reasons')->name('stock-movement-reasons.')->group(function () {
+        Route::get('/',                [StockMovementReasonController::class, 'index'  ])->middleware('permission:stock_list'  )->name('index');
+        Route::get('/create',          [StockMovementReasonController::class, 'create' ])->middleware('permission:stock_create')->name('create');
+        Route::post('/',               [StockMovementReasonController::class, 'store'  ])->middleware('permission:stock_create')->name('store');
+        Route::get('/{stockMovementReason}',      [StockMovementReasonController::class, 'show'   ])->middleware('permission:stock_list'  )->name('show');
+        Route::get('/{stockMovementReason}/edit', [StockMovementReasonController::class, 'edit'   ])->middleware('permission:stock_edit'  )->name('edit');
+        Route::patch('/{stockMovementReason}',    [StockMovementReasonController::class, 'update' ])->middleware('permission:stock_edit'  )->name('update');
+        Route::delete('/{stockMovementReason}',   [StockMovementReasonController::class, 'destroy'])->middleware('permission:stock_delete')->name('destroy');
+        Route::post('/{id}/restore',             [StockMovementReasonController::class, 'restore'])->middleware('permission:stock_edit'  )->name('restore');
     });
 
     /* ------------------------------------------------------------------ */
@@ -142,6 +192,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/',                [PermissionController::class, 'index' ])->name('index');
         Route::get('/create',          [PermissionController::class, 'create'])->name('create');
         Route::post('/',               [PermissionController::class, 'store' ])->name('store');
+        Route::get('/{permission}',       [PermissionController::class, 'show' ])->name('show');
         Route::get('/{permission}/edit', [PermissionController::class, 'edit' ])->name('edit');
         Route::patch('/{permission}',  [PermissionController::class, 'update'])->name('update');
         Route::delete('/{id}',         [PermissionController::class, 'destroy'])->name('destroy');
@@ -149,7 +200,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     /* ------------------------------------------------------------------ */
-    /* Logs d’audit & de connexion                                        */
+    /* Logs d'audit & de connexion                                        */
     /* ------------------------------------------------------------------ */
     Route::get('/audit-logs', function () {
         $logs = Activity::with('causer')->latest()->get();

@@ -1,7 +1,4 @@
-/* ------------------------------------------------------------------
-   Déclarations globales – application Inertia + catalogue
------------------------------------------------------------------- */
-import { LucideIcon } from 'lucide-react'
+import { DivideIcon as LucideIcon } from 'lucide-react'
 import type { Config } from 'ziggy-js'
 
 /* ---------- Navigation / Layout --------------------------------- */
@@ -70,6 +67,10 @@ export interface Category {
   deleted_at?: string | null
   created_at?: string
   updated_at?: string
+  products?: Array<{
+    id: number
+    name: string
+  }>
 }
 
 export interface AppSettings {
@@ -127,20 +128,27 @@ export interface CompatibilityEntry {
 
 /* --- Produit principal ----------------------------------------- */
 export interface Product {
-  id: string
-  sku: string
-  name: string
-  description?: string
-  price: string
-  stock_quantity: number
-  currency: Currency
-  tax_rate: TaxRate
-  category: Category
-  is_active: boolean
-  deleted_at?: string | null
-  created_at?: string
-  updated_at?: string
-
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  stock_quantity: number;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  brand?: {
+    id: string;
+    name: string;
+  };
+  currency?: {
+    code: string;
+    symbol: string;
+  };
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
   /* relations éventuellement chargées */
   compatible_with?: Array<{
     id: string
@@ -155,4 +163,39 @@ export interface Product {
 
   /* spécialisations dynamiques (ram, processor, …) */
   [key: string]: unknown
+}
+
+export interface Pagination<T> {
+  data: T[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number;
+  to: number;
+}
+
+/* --- Filtres pour les produits --------------------------------- */
+export interface ProductFilterType {
+  field: 'search' | 'name' | 'category' | 'status' | 'price' | 'stock' | 'date';
+  value: string;
+  value2?: string; // Pour les filtres "between" et "date_range"
+  operator: 'contains' | 'equals' | 'gt' | 'gte' | 'lt' | 'lte' | 'between' | 'date_range';
+}
+
+export interface ProductFilters {
+  search?: string;
+  name?: string;
+  category?: string;
+  status?: string;
+  price?: string;
+  price_operator?: string;
+  price_min?: string;
+  price_max?: string;
+  stock?: string;
+  stock_operator?: string;
+  stock_min?: string;
+  stock_max?: string;
+  date_start?: string;
+  date_end?: string;
 }

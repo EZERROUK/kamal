@@ -73,6 +73,13 @@ class RolePermissionSeeder extends Seeder
             'taxrate_delete',
             'taxrate_restore',
 
+            // ← Nouvelles permissions pour le stock
+            'stock_list',
+            'stock_create',
+            'stock_edit',
+            'stock_delete',
+            'stock_restore',
+
         ];
 
         foreach ($permissions as $permission) {
@@ -102,6 +109,10 @@ class RolePermissionSeeder extends Seeder
             'product_create',
             'product_edit',
             'product_delete',
+            'stock_list',        // ← Ajout des permissions stock
+            'stock_create',
+            'stock_edit',
+            'stock_delete',
         ]);
     }
 }

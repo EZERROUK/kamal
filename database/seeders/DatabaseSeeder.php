@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
             TaxRateSeeder::class,
             BrandSeeder::class,
             ProductSeeder::class,
+            ProviderSeeder::class,
+            StockMovementReasonSeeder::class,
             AppSettingSeeder::class,
         ]);
 
@@ -24,4 +26,3 @@ class DatabaseSeeder extends Seeder
         ])->assignRole('SuperAdmin');
     }
 }
-

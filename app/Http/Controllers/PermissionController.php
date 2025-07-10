@@ -8,24 +8,44 @@ use App\Models\Permission;
 
 class PermissionController extends Controller
 {
-    public function index()
-    {
-        $user = auth()->user();
-        $isSuperAdmin = $user->hasRole('SuperAdmin');
+    public function index(Request $request)
+{
+    $user = auth()->user();
+    $isSuperAdmin = $user->hasRole('SuperAdmin');
 
-        $permissionsQuery = Permission::query();
+    $query = Permission::query();
 
-        if ($isSuperAdmin) {
-            $permissionsQuery->withTrashed();
-        }
-
-        $permissions = $permissionsQuery->get();
-
-        return Inertia::render('Permissions/Index', [
-            'permissions' => $permissions,
-            'isSuperAdmin' => $isSuperAdmin
-        ]);
+    if ($isSuperAdmin) {
+        $query->withTrashed();
     }
+
+    // Filtres
+    if ($request->filled('search')) {
+        $query->where('name', 'like', '%' . $request->search . '%');
+    }
+
+    if ($request->filled('name')) {
+        $query->where('name', 'like', '%' . $request->name . '%');
+    }
+
+    if ($request->filled('status')) {
+        if (strtolower($request->status) === 'active') {
+            $query->whereNull('deleted_at');
+        } elseif (strtolower($request->status) === 'désactivée') {
+            $query->whereNotNull('deleted_at');
+        }
+    }
+
+    // Récupération des permissions
+    $permissions = $query->get();
+
+    return Inertia::render('Permissions/Index', [
+        'permissions' => $permissions,
+        'isSuperAdmin' => $isSuperAdmin,
+        'filters' => $request->only(['search', 'name', 'status', 'per_page']),
+    ]);
+}
+
 
     public function create()
     {
@@ -41,6 +61,16 @@ class PermissionController extends Controller
         Permission::create(['name' => $validated['name']]);
 
         return redirect()->route('permissions.index')->with('success', 'Permission créée avec succès.');
+    }
+
+    public function show(Permission $permission)
+    {
+        // Récupère aussi les rôles qui utilisent cette permission
+        $permission->load('roles');
+
+        return Inertia::render('Permissions/Show', [
+            'permission' => $permission,
+        ]);
     }
 
     public function edit(Permission $permission)
@@ -86,4 +116,5 @@ class PermissionController extends Controller
 
         return redirect()->route('permissions.index')->with('success', 'Permission restaurée avec succès.');
     }
+
 }

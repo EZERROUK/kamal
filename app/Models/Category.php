@@ -12,9 +12,11 @@ class Category extends Model
 
     protected $fillable = ['name', 'slug'];
 
-    /* Relations */
+    /* ------------------------------------------------------------------ */
+    /* Relations                                                          */
+    /* ------------------------------------------------------------------ */
     public function products(): HasMany
     {
-        return $this->hasMany(Product::class);
+        return $this->hasMany(Product::class, 'category_id', 'id');
     }
 }

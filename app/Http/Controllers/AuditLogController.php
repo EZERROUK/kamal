@@ -12,80 +12,82 @@ use Maatwebsite\Excel\Facades\Excel;
 class AuditLogController extends Controller
 {
     public function index(Request $request)
-{
-    $query = Activity::query()->with('causer');
+    {
+        $perPage = $request->input('per_page', 10);
+        $filters = $request->only(['user', 'action', 'subject_type', 'search', 'start_date', 'end_date']);
 
-    // Recherche texte global
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('description', 'like', "%$search%")
-              ->orWhere('subject_type', 'like', "%$search%")
-              ->orWhere('subject_id', 'like', "%$search%")
-              ->orWhereHas('causer', function ($cq) use ($search) {
-                  $cq->where('name', 'like', "%$search%")
-                     ->orWhere('email', 'like', "%$search%");
-              });
-        });
-    }
+        $query = Activity::query()->with('causer')->orderBy('created_at', 'desc');
 
-    // Filtres utilisateur/action
-    if ($request->filled('user')) {
-        $userInput = trim(strtolower($request->user));
-        if ($userInput === '__system__') {
-            $query->whereNull('causer_id');
-        } else {
-            $query->whereHas('causer', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->user . '%')
-                  ->orWhere('email', 'like', '%' . $request->user . '%');
+        // Filtre par utilisateur (nom ou email)
+        if (!empty($filters['user'])) {
+            $userInput = trim(strtolower($filters['user']));
+            if ($userInput === '__system__') {
+                $query->whereNull('causer_id');
+            } else {
+                $query->whereHas('causer', function ($q) use ($filters) {
+                    $q->where('name', 'like', '%' . $filters['user'] . '%')
+                      ->orWhere('email', 'like', '%' . $filters['user'] . '%');
+                });
+            }
+        }
+
+        // Filtre par action/description
+        if (!empty($filters['action'])) {
+            $query->where('description', 'like', '%' . $filters['action'] . '%');
+        }
+
+        // Filtre par type d'objet
+        if (!empty($filters['subject_type'])) {
+            $query->where('subject_type', $filters['subject_type']);
+        }
+
+        // Filtre global (description, subject_type, subject_id, causer)
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('subject_type', 'like', "%{$search}%")
+                  ->orWhere('subject_id', 'like', "%{$search}%")
+                  ->orWhereRaw("DATE_FORMAT(created_at, '%d/%m/%Y %H:%i') LIKE ?", ["%{$search}%"])
+                  ->orWhereHas('causer', function ($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                  });
             });
         }
-    }
 
-    if ($request->filled('action')) {
-        $query->where('description', 'like', '%' . $request->action . '%');
-    }
+        // Filtre par date de début
+        if (!empty($filters['start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['start_date']);
+        }
 
-    if ($request->filled('start_date') && $request->filled('end_date')) {
-        $query->whereBetween('created_at', [
-            Carbon::parse($request->start_date)->startOfMinute(),
-            Carbon::parse($request->end_date)->endOfMinute(),
+        // Filtre par date de fin
+        if (!empty($filters['end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['end_date']);
+        }
+
+        return Inertia::render('audit-logs/Index', [
+            'logs' => $query->paginate($perPage)->through(function ($log) {
+                return [
+                    'id' => $log->id,
+                    'description' => $log->description,
+                    'subject_type' => $log->subject_type,
+                    'subject_id' => $log->subject_id,
+                    'causer' => $log->causer ? [
+                        'name' => $log->causer->name,
+                        'email' => $log->causer->email
+                    ] : null,
+                    'properties' => $log->properties,
+                    'created_at' => $log->created_at->format('Y-m-d H:i:s')
+                ];
+            }),
+            'filters' => $filters,
         ]);
     }
 
-    // Tri
-    $sort = $request->input('sort', 'created_at');
-    $direction = $request->input('direction', 'desc');
-    if (in_array($sort, ['created_at', 'description']) && in_array($direction, ['asc', 'desc'])) {
-        $query->orderBy($sort, $direction);
-    }
-
-    // Pagination
-    $logs = $query->paginate($request->input('per_page', 10))->appends($request->all());
-
-    // ✅ Ajout de valeurs par défaut pour `filters`
-    $filters = array_merge([
-        'user' => null,
-        'action' => null,
-        'search' => null,
-        'start_date' => null,
-        'end_date' => null,
-        'sort' => 'created_at',
-        'direction' => 'desc',
-        'per_page' => 10,
-    ], $request->only([
-        'user', 'action', 'search', 'start_date', 'end_date', 'sort', 'direction', 'per_page',
-    ]));
-
-    return Inertia::render('audit-logs/Index', [
-        'logs' => $logs,
-        'filters' => $filters,
-    ]);
-}
-
-
     public function export(Request $request)
     {
-        return Excel::download(new AuditLogsExport($request), 'audit_logs.xlsx');
+        $filters = $request->only(['user', 'action', 'subject_type', 'search', 'start_date', 'end_date']);
+        return Excel::download(new AuditLogsExport($filters), 'audit_logs.xlsx');
     }
 }

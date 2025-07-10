@@ -1,128 +1,202 @@
-import React, { useEffect, useState } from 'react'
-import { Head, useForm } from '@inertiajs/react'
-import { Button } from '@/components/ui/button'
-import AppLayout from '@/layouts/app-layout'
-import { Info } from 'lucide-react'
+import React, { useEffect, useState } from 'react';
+import { Head, useForm } from '@inertiajs/react';
+import { route } from 'ziggy-js';
+import {
+  Tag, Hash, ArrowLeft, Plus, Info
+} from 'lucide-react';
 
-export default function CreateCategory () {
+import AppLayout from '@/layouts/app-layout';
+import ParticlesBackground from '@/components/ParticlesBackground';
+import { Button } from '@/components/ui/button';
+
+export default function CreateCategory() {
+  /* ─── État Inertia ─── */
   const { data, setData, post, processing, errors } = useForm({
     name: '',
     slug: '',
-  })
+  });
 
-  /* indique si l’utilisateur a édité le slug à la main */
-  const [slugEdited, setSlugEdited] = useState(false)
+  /* ─── État local ─── */
+  const [slugEdited, setSlugEdited] = useState(false);
 
-  /* regen slug à chaque frappe dans “name” tant que l’utilisateur
-     n’a pas modifié manuellement le champ slug */
+  /* ─── Auto-génération du slug ─── */
   useEffect(() => {
     if (!slugEdited) {
-      setData('slug', slugify(data.name))
+      setData('slug', slugify(data.name));
     }
-  }, [data.name])
+  }, [data.name]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    post(route('categories.store'))
-  }
+    e.preventDefault();
+    post(route('categories.store'));
+  };
 
+  /* ─────────────────────────────────────────── */
   return (
     <>
-      <Head title='Créer une catégorie' />
-      <AppLayout breadcrumbs={[
-        { title: 'Dashboard',  href: '/dashboard' },
-        { title: 'Catégories', href: '/categories' },
-        { title: 'Créer',      href: '/categories/create' },
-      ]}>
-        <div className='grid grid-cols-12 gap-6 p-6'>
-          {/* -------- Formulaire -------- */}
-          <div className='col-span-12 lg:col-span-8 xl:col-span-7'>
-            <div className='bg-white rounded-lg shadow-sm p-6'>
-              <h1 className='text-xl font-semibold mb-6'>Nouvelle catégorie</h1>
+      <Head title="Créer une catégorie" />
 
-              <form onSubmit={handleSubmit}>
-                {/* Nom */}
-                <div className='mb-6'>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Nom<span className='text-red-600'>*</span>
-                  </label>
-                  <input
+      <div className="relative min-h-screen bg-gradient-to-br
+                      from-white via-slate-100 to-slate-200
+                      dark:from-[#0a0420] dark:via-[#0e0a32] dark:to-[#1B1749]
+                      transition-colors duration-500">
+        <ParticlesBackground />
+
+        <AppLayout breadcrumbs={[
+          { title: 'Dashboard', href: '/dashboard' },
+          { title: 'Catégories', href: '/categories' },
+          { title: 'Créer', href: '/categories/create' },
+        ]}>
+
+          <div className="grid grid-cols-12 gap-6 p-6">
+
+            {/* ────────── Formulaire ────────── */}
+            <div className="col-span-12 lg:col-span-8 xl:col-span-7">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-xl
+                              dark:bg-white/5 dark:border-slate-700 backdrop-blur-md p-8">
+                <h1 className="text-xl font-semibold mb-6 text-slate-900 dark:text-white">
+                  Nouvelle catégorie
+                </h1>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Nom */}
+                  <Field
+                    id="name"
+                    label="Nom de la catégorie"
+                    Icon={Tag}
                     value={data.name}
-                    onChange={e => {
-                      setData('name', e.target.value)
-                      /* si on vide le nom on ré‑initialise le slugEdited */
-                      if (e.target.value === '') setSlugEdited(false)
+                    onChange={(v) => {
+                      setData('name', v);
+                      if (v === '') setSlugEdited(false);
                     }}
-                    className='w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm'
+                    error={errors.name}
                     required
                   />
-                  {errors.name && <p className='mt-1 text-sm text-red-600'>{errors.name}</p>}
-                </div>
 
-                {/* Slug */}
-                <div className='mb-6'>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Slug<span className='text-red-600'>*</span>
-                  </label>
-                  <input
+                  {/* Slug */}
+                  <Field
+                    id="slug"
+                    label="Slug (URL)"
+                    Icon={Hash}
                     value={data.slug}
-                    onChange={e => {
-                      setData('slug', e.target.value)
-                      setSlugEdited(true)               // l’utilisateur a pris la main
+                    onChange={(v) => {
+                      setData('slug', v);
+                      setSlugEdited(true);
                     }}
-                    className='w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm'
+                    error={errors.slug}
                     required
                   />
-                  {errors.slug && <p className='mt-1 text-sm text-red-600'>{errors.slug}</p>}
-                </div>
 
-                {/* Boutons */}
-                <div className='flex justify-between'>
-                  <Button type='button' onClick={() => history.back()}
-                          className='bg-gray-300 text-gray-800 hover:bg-gray-400 px-6 py-3 rounded-md'>
-                    Annuler
-                  </Button>
-                  <Button type='submit' disabled={processing}
-                          className='bg-gray-600 text-white hover:bg-gray-700 px-6 py-3 rounded-md'>
-                    {processing ? 'Création…' : 'Créer la catégorie'}
-                  </Button>
-                </div>
-              </form>
+                  {/* Actions */}
+                  <div className="flex justify-between pt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => window.history.back()}
+                      className="bg-muted hover:bg-muted/80 text-slate-700 dark:text-slate-300"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" /> Annuler
+                    </Button>
+
+                    <Button
+                      type="submit"
+                      disabled={processing}
+                      className="group relative flex items-center justify-center
+                                 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-6 py-3
+                                 text-sm font-semibold text-white shadow-md transition-all
+                                 hover:from-red-500 hover:to-red-600 focus:ring-2 focus:ring-red-500"
+                    >
+                      {processing
+                        ? (<div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />)
+                        : (<Plus className="w-4 h-4 mr-2" />)}
+                      {processing ? 'Création…' : 'Créer la catégorie'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
 
-          {/* ---- Aide ---- */}
-             <div className='col-span-12 lg:col-span-4 xl:col-span-5'>
-            <div className='bg-white rounded-lg shadow-sm p-6'>
-              <h2 className='text-lg font-medium mb-4'>À propos des catégories</h2>
-              <div className='prose max-w-none'>
-                <p className='text-gray-600'>
-                  Les catégories organisent votre catalogue et facilitent la recherche pour vos clients.
-                </p>
-                <p className='text-gray-600 mt-4'>
-                  Le <strong>slug</strong> est utilisé dans l’URL. Il doit être unique
-                  et ne contenir que des caractères alphanumériques et des tirets.
-                </p>
-                <div className='mt-4 p-4 bg-blue-50 rounded-md border border-blue-100 flex gap-3'>
-                  <Info className='w-5 h-5 text-blue-600 mt-0.5' />
-                  <p className='text-sm text-blue-700'>
-                    Le slug est généré automatiquement à partir du nom, mais vous pouvez le modifier avant d’enregistrer.
+            {/* ────────── Aide ────────── */}
+            <div className="col-span-12 lg:col-span-4 xl:col-span-5">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-xl
+                              dark:bg-white/5 dark:border-slate-700 backdrop-blur-md p-8">
+                <h2 className="text-lg font-medium mb-4 text-slate-900 dark:text-white">
+                  À propos des catégories
+                </h2>
+                <div className="space-y-4">
+                  <p className="text-slate-600 dark:text-slate-300 text-sm">
+                    Les catégories organisent votre catalogue et facilitent la recherche pour vos clients.
                   </p>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm">
+                    Le <strong>slug</strong> est utilisé dans l'URL. Il doit être unique
+                    et ne contenir que des caractères alphanumériques et des tirets.
+                  </p>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 flex gap-3">
+                    <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Le slug est généré automatiquement à partir du nom, mais vous pouvez le modifier avant d'enregistrer.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
+
           </div>
-        </div>
-      </AppLayout>
+        </AppLayout>
+      </div>
     </>
-  )
+  );
 }
 
-/* Helper local */
-function slugify (str: string): string {
+/* ────────── Composant réutilisable ────────── */
+interface FieldProps {
+  id: string;
+  label: string;
+  Icon: any;
+  type?: React.HTMLInputTypeAttribute;
+  required?: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  autoComplete?: string;
+  error?: string | false;
+}
+
+function Field({
+  id, label, Icon, type = 'text', required = true,
+  value, onChange, autoComplete, error,
+}: FieldProps) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+        <input
+          id={id}
+          name={id}
+          type={type}
+          required={required}
+          value={value}
+          autoComplete={autoComplete}
+          onChange={e => onChange(e.target.value)}
+          className={`block w-full rounded-lg border py-3 pl-10 pr-3 bg-white dark:bg-slate-800
+                      ${error
+                        ? 'border-red-500 text-red-500'
+                        : 'border-slate-300 text-slate-900 dark:text-white dark:border-slate-700'}
+                      focus:border-red-500 focus:ring-1 focus:ring-red-500`}
+        />
+      </div>
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+/* ────────── Helper ────────── */
+function slugify(str: string): string {
   return str
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().trim()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(/^-+|-+$/g, '');
 }

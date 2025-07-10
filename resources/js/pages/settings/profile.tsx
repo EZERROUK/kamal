@@ -42,6 +42,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
       <Head title="Paramètres du profil" />
 
       <SettingsLayout>
+        {/* Profil */}
         <div className="space-y-6">
           <HeadingSmall
             title="Informations du profil"
@@ -120,7 +121,10 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
           </form>
         </div>
 
-        <DeleteUser />
+        {/* Separateur et suppression de compte */}
+        <div className="mt-12 pt-8 border-t border-border/20 dark:border-border/30">
+          <DeleteUser />
+        </div>
       </SettingsLayout>
     </AppLayout>
   )

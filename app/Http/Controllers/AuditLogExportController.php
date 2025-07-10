@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -9,82 +10,95 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use Spatie\Activitylog\Models\Activity;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AuditLogExportController extends Controller implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize
 {
-    public function collection()
+    /**
+     * Construit la collection de données à exporter.
+     */
+    public function collection(): Collection
     {
-        return Activity::with(['causer', 'subject'])->get()->map(function ($log) {
-            // Formatage des détails de l'action
-            $details = '';
+        return Activity::with(['causer', 'subject'])->get()->map(function (Activity $log) {
+            $subjectName = $log->subject?->name ?? 'N/A';
+            $details     = '';
 
-            if ($log->description === 'Modification des rôles') {
-                $properties = $log->properties->toArray();
+            switch ($log->description) {
+                case 'Modification des rôles':
+                    $props   = $log->properties->toArray();
+                    $details = "Modifications des rôles pour l'utilisateur {$subjectName}:\n";
 
-                $details = "Modifications des rôles pour l'utilisateur {$log->subject->name}:\n";
+                    if (!empty($props['roles_précédents'] ?? [])) {
+                        $details .= "- Anciens rôles: " . implode(', ', $props['roles_précédents']) . "\n";
+                    }
+                    if (!empty($props['nouveaux_roles'] ?? [])) {
+                        $details .= "- Nouveaux rôles: " . implode(', ', $props['nouveaux_roles']) . "\n";
+                    }
+                    if (!empty($props['roles_ajoutés'] ?? [])) {
+                        $details .= "- Rôles ajoutés: " . implode(', ', $props['roles_ajoutés']) . "\n";
+                    }
+                    if (!empty($props['roles_supprimés'] ?? [])) {
+                        $details .= "- Rôles supprimés: " . implode(', ', $props['roles_supprimés']) . "\n";
+                    }
+                    break;
 
-                if (!empty($properties['roles_précédents'])) {
-                    $details .= "- Anciens rôles: " . implode(', ', $properties['roles_précédents']) . "\n";
-                }
+                case 'Changement de mot de passe':
+                    $details = "Le mot de passe de l'utilisateur \"{$subjectName}\" a été modifié";
+                    break;
 
-                if (!empty($properties['nouveaux_roles'])) {
-                    $details .= "- Nouveaux rôles: " . implode(', ', $properties['nouveaux_roles']) . "\n";
-                }
+                default:
+                    // Ignorer les updates vides
+                    if (
+                        $log->description === 'updated' &&
+                        ($log->properties === null || $log->properties->isEmpty())
+                    ) {
+                        return null;
+                    }
 
-                if (!empty($properties['roles_ajoutés'])) {
-                    $details .= "- Rôles ajoutés: " . implode(', ', $properties['roles_ajoutés']) . "\n";
-                }
+                    if ($log->properties && $log->properties->isNotEmpty()) {
+                        $props = $log->properties->toArray();
 
-                if (!empty($properties['roles_supprimés'])) {
-                    $details .= "- Rôles supprimés: " . implode(', ', $properties['roles_supprimés']);
-                }
-            } elseif ($log->description === 'Changement de mot de passe') {
-                $properties = $log->properties->toArray();
-                $details = "Le mot de passe de l'utilisateur \"{$log->subject->name}\" a été modifié";
-            } else {
-                // Skip empty updates
-                if ($log->description === 'updated' && (!$log->properties || $log->properties->count() === 0)) {
-                    return null;
-                }
+                        if (!empty($props['attributes'] ?? [])) {
+                            $hasChanges = false;
+                            foreach ($props['attributes'] as $key => $value) {
+                                if (in_array($key, ['password', 'remember_token']) || $value === null || $value === '') {
+                                    continue;
+                                }
 
-                if ($log->properties && $log->properties->count() > 0) {
-                    $properties = $log->properties->toArray();
-
-                    if (isset($properties['attributes']) && count($properties['attributes']) > 0) {
-                        $hasChanges = false;
-                        $tempDetails = "";
-                        foreach ($properties['attributes'] as $key => $value) {
-                            if ($key !== 'password' && $key !== 'remember_token' && !empty($value)) {
-                                $oldValue = isset($properties['old'][$key]) ? $properties['old'][$key] : 'non défini';
-                                $tempDetails .= "- $key: $oldValue → $value\n";
+                                $oldValue = $props['old'][$key] ?? 'non défini';
+                                $details .= "- {$key}: {$oldValue} → {$value}\n";
                                 $hasChanges = true;
                             }
+                            if (!$hasChanges) {
+                                $details = "Aucune modification n'a été apportée";
+                            }
                         }
-                        $details = $hasChanges ? $tempDetails : "Aucune modification n'a été apportée";
                     }
-                }
             }
 
-            // Skip entries with empty details
+            // Si aucun détail pertinent, on n’exporte pas l’entrée
             if (empty(trim($details))) {
                 return null;
             }
 
             return [
-                'ID' => $log->id,
+                'ID'          => $log->id,
                 'Utilisateur' => $log->causer?->name ?? 'Système',
-                'Email' => $log->causer?->email ?? 'N/A',
-                'Action' => $log->description,
-                'Type' => $log->subject_type,
-                'ID Sujet' => $log->subject_id,
-                'Détails' => $details,
-                'Date' => $log->created_at->format('d/m/Y H:i:s'),
+                'Email'       => $log->causer?->email ?? 'N/A',
+                'Action'      => $log->description,
+                'Type'        => $log->subject_type,
+                'ID Sujet'    => $log->subject_id,
+                'Détails'     => $details,
+                'Date'        => $log->created_at->format('d/m/Y H:i:s'),
             ];
-        })->filter(); // Remove null entries
+        })->filter(); // supprime les entrées null
     }
 
+    /**
+     * En-têtes de la feuille Excel.
+     */
     public function headings(): array
     {
         return [
@@ -99,31 +113,34 @@ class AuditLogExportController extends Controller implements FromCollection, Wit
         ];
     }
 
+    /**
+     * Styles de la feuille Excel.
+     */
     public function styles(Worksheet $sheet)
     {
-        // Style pour l'en-tête
+        // Style de l’en-tête
         $sheet->getStyle('A1:H1')->applyFromArray([
             'font' => [
-                'bold' => true,
+                'bold'  => true,
                 'color' => ['rgb' => 'FFFFFF'],
-                'size' => 11,
+                'size'  => 11,
             ],
             'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '4A5568'], // Gris foncé
+                'fillType'   => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '4A5568'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER,
             ],
         ]);
 
-        // Style pour toutes les cellules
+        // Bordures + alignement vertical global
         $sheet->getStyle('A1:H' . $sheet->getHighestRow())->applyFromArray([
             'borders' => [
                 'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    'color' => ['rgb' => 'E2E8F0'], // Gris clair
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color'       => ['rgb' => 'E2E8F0'],
                 ],
             ],
             'alignment' => [
@@ -131,24 +148,28 @@ class AuditLogExportController extends Controller implements FromCollection, Wit
             ],
         ]);
 
-        // Centrage pour les colonnes ID, Type, ID Sujet et Date
-        $sheet->getStyle('A2:A' . $sheet->getHighestRow())->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('E2:F' . $sheet->getHighestRow())->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('H2:H' . $sheet->getHighestRow())->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Centrages spécifiques
+        $sheet->getStyle('A2:A' . $sheet->getHighestRow())
+              ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('E2:F' . $sheet->getHighestRow())
+              ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('H2:H' . $sheet->getHighestRow())
+              ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        // Ajustement du format pour la colonne Détails
-        $sheet->getStyle('G2:G' . $sheet->getHighestRow())->getAlignment()->setWrapText(true);
+        // Wrap texte pour la colonne Détails
+        $sheet->getStyle('G2:G' . $sheet->getHighestRow())
+              ->getAlignment()->setWrapText(true);
 
-        // Hauteur de la première ligne
+        // Hauteur de la ligne d’en-tête
         $sheet->getRowDimension(1)->setRowHeight(25);
 
-        // Style alterné pour les lignes
+        // Bandes alternées (gris clair)
         for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
-            if ($row % 2 == 0) {
-                $sheet->getStyle('A' . $row . ':H' . $row)->applyFromArray([
+            if ($row % 2 === 0) {
+                $sheet->getStyle("A{$row}:H{$row}")->applyFromArray([
                     'fill' => [
-                        'fillType' => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => 'F7FAFC'], // Gris très clair
+                        'fillType'   => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => 'F7FAFC'],
                     ],
                 ]);
             }
@@ -157,8 +178,14 @@ class AuditLogExportController extends Controller implements FromCollection, Wit
         return $sheet;
     }
 
+    /**
+     * Téléchargement du fichier.
+     */
     public function export()
     {
-        return Excel::download($this, 'journal_activites_' . now()->format('d-m-Y_H-i-s') . '.xlsx');
+        return Excel::download(
+            $this,
+            'journal_activites_' . now()->format('d-m-Y_H-i-s') . '.xlsx'
+        );
     }
 }

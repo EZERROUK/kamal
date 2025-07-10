@@ -13,7 +13,7 @@ return new class extends Migration
 
             $table->string('cpu');                  // ex. "Intel i7-1165G7"
             $table->unsignedSmallInteger('ram');    // GB
-            $table->string('graphic_card');         // ex. "NVIDIA RTX 3050"
+            $table->string('graphic_card')->nullable();         // ex. "NVIDIA RTX 3050"
             $table->string('keyboard');             // ex. "AZERTY backlit"
             $table->enum('condition', ['new','used','refurbished'])
                   ->default('new');

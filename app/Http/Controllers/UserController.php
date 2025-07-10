@@ -13,31 +13,55 @@ use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
-    public function index(Request $request)
-    {
-        /** @var \App\Models\User $user */
-        $user = Auth::user();
-        $query = User::with('roles');
+  public function index(Request $request)
+{
+    /** @var \App\Models\User $user */
+    $user = Auth::user();
+    $query = User::with('roles');
 
-        if ($request->has('role') && $request->role) {
-            $query = $query->whereHas('roles', function ($query) use ($request) {
-                $query->where('name', $request->role);
-            });
-        }
-
-        if ($user && $user->hasRole('SuperAdmin')) {
-            $query = $query->withTrashed();
-        }
-
-        $users = $query->get();
-
-        $roles = \Spatie\Permission\Models\Role::pluck('name')->toArray();
-
-        return Inertia::render('Users/Index', [
-            'users' => $users,
-            'roles' => $roles,
-        ]);
+    // Filtres côté serveur
+    if ($request->has('search') && $request->search) {
+        $query = $query->where(function($q) use ($request) {
+            $q->where('name', 'like', '%' . $request->search . '%')
+              ->orWhere('email', 'like', '%' . $request->search . '%');
+        });
     }
+
+    if ($request->has('name') && $request->name) {
+        $query = $query->where('name', 'like', '%' . $request->name . '%');
+    }
+
+    if ($request->has('email') && $request->email) {
+        $query = $query->where('email', 'like', '%' . $request->email . '%');
+    }
+
+    if ($request->has('role') && $request->role) {
+        $query = $query->whereHas('roles', function ($query) use ($request) {
+            $query->where('name', $request->role);
+        });
+    }
+
+    if ($request->has('status') && $request->status) {
+        if (strtolower($request->status) === 'actif') {
+            $query = $query->whereNull('deleted_at');
+        } elseif (strtolower($request->status) === 'désactivé') {
+            $query = $query->whereNotNull('deleted_at');
+        }
+    }
+
+    if ($user && $user->hasRole('SuperAdmin')) {
+        $query = $query->withTrashed();
+    }
+
+    $users = $query->get();
+    $roles = \Spatie\Permission\Models\Role::pluck('name')->toArray();
+
+    return Inertia::render('Users/Index', [
+        'users' => $users,
+        'roles' => $roles,
+        'filters' => $request->only(['search', 'name', 'email', 'role', 'status', 'per_page']),
+    ]);
+}
 
 
     public function export()

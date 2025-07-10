@@ -6,7 +6,7 @@ import { type NavItem } from '@/types'
 import { Link } from '@inertiajs/react'
 import { type PropsWithChildren } from 'react'
 
-// Tu peux rajouter ici autant de tabs que tu veux !
+// Onglets de navigation
 const sidebarNavItems: NavItem[] = [
   {
     title: 'Profil',
@@ -31,10 +31,8 @@ const sidebarNavItems: NavItem[] = [
 ]
 
 export default function SettingsLayout({ children }: PropsWithChildren) {
-  // On évite le SSR sur ce composant
-  if (typeof window === 'undefined') {
-    return null
-  }
+  // Empêche le SSR (pas obligatoire mais préventif si pathname dépend du DOM)
+  if (typeof window === 'undefined') return null
 
   const currentPath = window.location.pathname
 
@@ -45,37 +43,39 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
         description="Gérez votre profil, votre mot de passe et vos préférences d’application"
       />
 
-      <div className="flex flex-col space-y-8 lg:flex-row lg:space-y-0 lg:space-x-12">
-        {/* Sidebar */}
-        <aside className="w-full max-w-xs lg:w-56">
-          <nav className="flex flex-col space-y-1">
-            {sidebarNavItems.map((item, index) => (
-              <Button
-                key={`${item.href}-${index}`}
-                size="sm"
-                variant="ghost"
-                asChild
-                className={cn(
-                  'w-full justify-start rounded-md px-4 py-2 text-sm',
-                  currentPath === item.href
-                    ? 'bg-gray-100 font-semibold text-gray-900'
-                    : 'text-gray-700'
-                )}
-              >
-                <Link href={item.href} prefetch>
-                  {item.title}
-                </Link>
-              </Button>
-            ))}
-          </nav>
-        </aside>
+      <div className="mt-6 flex flex-col lg:flex-row lg:space-x-8">
+        {/* Barre latérale */}
+       <aside className="w-full max-w-full p-0 lg:w-60">
+  <nav className="flex flex-col gap-1">
+    {sidebarNavItems.map((item) => {
+      const isActive = currentPath === item.href
+      return (
+        <Button
+          key={item.href}
+          size="sm"
+          variant="ghost"
+          asChild
+          className={cn(
+            'w-full justify-start rounded-md px-3 py-2 text-sm transition-colors',
+            isActive
+              ? 'bg-primary/10 text-primary font-semibold'
+              : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+          )}
+        >
+          <Link href={item.href} prefetch>{item.title}</Link>
+        </Button>
+      )
+    })}
+  </nav>
+</aside>
 
-        <Separator className="my-6 md:hidden" />
 
-        {/* Content */}
-        <div className="flex-1 md:max-w-2xl">
-          <section className="max-w-xl space-y-12">{children}</section>
-        </div>
+        <Separator className="my-6 lg:hidden" />
+
+        {/* Contenu principal */}
+        <main className="flex-1 rounded-xl bg-white/70 p-6 shadow dark:bg-white/5 dark:shadow-md border border-slate-200 dark:border-slate-700">
+          {children}
+        </main>
       </div>
     </div>
   )

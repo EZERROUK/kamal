@@ -57,10 +57,34 @@ class CategoryController extends Controller
             ->with('success', 'Catégorie mise à jour.');
     }
 
-    public function show(Category $category): Response
+     public function show(Category $category): Response
     {
-        $category->load('products:id,name');
-        return Inertia::render('Categories/Show', ['category' => $category]);
+        // Charge les produits et leur marque
+        $category->load([
+            'products' => function ($q) {
+                $q->select('id', 'name', 'model', 'brand_id', 'category_id')
+                  ->with('brand:id,name');
+            },
+        ]);
+
+        return Inertia::render('Categories/Show', [
+            'category' => [
+                'id'         => $category->id,
+                'name'       => $category->name,
+                'slug'       => $category->slug,
+                'created_at' => $category->created_at,
+                'updated_at' => $category->updated_at,
+                'deleted_at' => $category->deleted_at,
+
+                // On envoie id, name, model et brand
+                'products'   => $category->products->map(fn ($p) => [
+                    'id'    => $p->id,
+                    'name'  => $p->name,
+                    'model' => $p->model,
+                    'brand' => $p->brand?->name,
+                ]),
+            ],
+        ]);
     }
 
     public function destroy(Category $category): RedirectResponse

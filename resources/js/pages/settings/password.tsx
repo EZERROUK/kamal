@@ -4,12 +4,13 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler, useRef } from 'react';
+import { FormEventHandler, useRef, useState } from 'react';
 
 import HeadingSmall from '@/components/heading-small';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Eye, EyeOff } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -21,6 +22,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Password() {
   const passwordInput = useRef<HTMLInputElement>(null);
   const currentPasswordInput = useRef<HTMLInputElement>(null);
+
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const { data, setData, errors, put, reset, processing, recentlySuccessful } = useForm({
     current_password: '',
@@ -54,56 +59,83 @@ export default function Password() {
 
       <SettingsLayout>
         <div className="space-y-6">
-          <HeadingSmall title="Modifier le mot de passe" description="Assurez-vous d'utiliser un mot de passe long et aléatoire pour renforcer la sécurité de votre compte." />
+          <HeadingSmall
+            title="Modifier le mot de passe"
+            description="Assurez-vous d'utiliser un mot de passe long et aléatoire pour renforcer la sécurité de votre compte."
+          />
 
           <form onSubmit={updatePassword} className="space-y-6">
-            <div className="grid gap-2">
+            <div className="grid gap-2 max-w-sm">
               <Label htmlFor="current_password">Mot de passe actuel</Label>
-
-              <Input
-                id="current_password"
-                ref={currentPasswordInput}
-                value={data.current_password}
-                onChange={(e) => setData('current_password', e.target.value)}
-                type="password"
-                className="mt-1 block w-full"
-                autoComplete="current-password"
-                placeholder="Mot de passe actuel"
-              />
-
+              <div className="relative">
+                <Input
+                  id="current_password"
+                  ref={currentPasswordInput}
+                  value={data.current_password}
+                  onChange={(e) => setData('current_password', e.target.value)}
+                  type={showCurrent ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Mot de passe actuel"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               <InputError message={errors.current_password} />
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-2 max-w-sm">
               <Label htmlFor="password">Nouveau mot de passe</Label>
-
-              <Input
-                id="password"
-                ref={passwordInput}
-                value={data.password}
-                onChange={(e) => setData('password', e.target.value)}
-                type="password"
-                className="mt-1 block w-full"
-                autoComplete="new-password"
-                placeholder="Nouveau mot de passe"
-              />
-
+              <div className="relative">
+                <Input
+                  id="password"
+                  ref={passwordInput}
+                  value={data.password}
+                  onChange={(e) => setData('password', e.target.value)}
+                  type={showNew ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Nouveau mot de passe"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew(!showNew)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               <InputError message={errors.password} />
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-2 max-w-sm">
               <Label htmlFor="password_confirmation">Confirmer le mot de passe</Label>
-
-              <Input
-                id="password_confirmation"
-                value={data.password_confirmation}
-                onChange={(e) => setData('password_confirmation', e.target.value)}
-                type="password"
-                className="mt-1 block w-full"
-                autoComplete="new-password"
-                placeholder="Confirmer le mot de passe"
-              />
-
+              <div className="relative">
+                <Input
+                  id="password_confirmation"
+                  value={data.password_confirmation}
+                  onChange={(e) => setData('password_confirmation', e.target.value)}
+                  type={showConfirm ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Confirmer le mot de passe"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               <InputError message={errors.password_confirmation} />
             </div>
 

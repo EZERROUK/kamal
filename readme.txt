@@ -14,39 +14,51 @@ Zend Engine v4.3.4, Copyright (c) Zend Technologies
 
 inertiajs/inertia-laravel           2.0.2   The Laravel adapter for Inertia.js.
 
-Gestion des utilisateurs
-- Utilisateurs
-- Rôles
-- Permissions
-- Audit-logs
+Si les images ne s'affichent pas directement dans le site :
 
-Gestion des Tickets
-- Création de tickets avec priorité et catégorie
-- Attribution automatique ou manuelle aux agents
-- Système de suivi et de statuts
-- Historique des modifications
-- Commentaires et pièces jointes
-- SLA (Service Level Agreements)
+1 ) Ouvre ta session SSH puis place-toi à la racine du projet
+bash
+Copier
+Modifier
+cd ~/domains/globalglimpse.ma/public_html/xzone
+# Vérifie qu'on voit bien 'artisan'
+ls -l artisan
+2 ) Nettoie l’ancien lien (au cas où)
+bash
+Copier
+Modifier
+rm -rf public/storage
+3 ) Crée manuellement le lien symbolique
+bash
+Copier
+Modifier
+# Toujours depuis ~/domains/.../xzone
+ln -s "$(pwd)/storage/app/public" "$(pwd)/public/storage"
+(Si tu préfères la version absolue, remplace $(pwd) par le chemin complet.)
 
-Catégorisation
-- Types de tickets (Incident, Demande, Problème)
-- Catégories et sous-catégories
-- Impact et urgence
+Vérifie :
 
-Base de Connaissances
-- Articles de solutions
-- FAQ
-- Procédures standard
-- Recherche avancée
-
-Automatisation
-- Règles d'attribution automatique
-- Notifications par email
-- Escalade automatique
-- Rappels automatiques
-- Reporting
-
-Tableaux de bord
-- KPIs (temps de résolution, satisfaction client)
-- Rapports personnalisables
-- Statistiques
+bash
+Copier
+Modifier
+ls -l public | grep storage
+# ➜ storage -> ../storage/app/public   (doit apparaître)
+4 ) Ajuste les permissions (lecture pour tout le monde)
+bash
+Copier
+Modifier
+find storage/app/public -type d -exec chmod 755 {} \;
+find storage/app/public -type f -exec chmod 644 {} \;
+5 ) Vide les caches Laravel (facultatif mais conseillé)
+bash
+Copier
+Modifier
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+6 ) Teste dans le navigateur
+ruby
+Copier
+Modifier
+https://x-zone.globalglimpse.ma/storage/logos/nom_de_ton_fichier.png
+• Si l’image s’affiche : problème résolu !

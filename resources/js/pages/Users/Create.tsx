@@ -1,195 +1,266 @@
+import React, { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import AppLayout from '@/layouts/app-layout';
-import { Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { route } from 'ziggy-js';
+import {
+  User, Mail, Shield,
+  Eye, EyeOff, ChevronDown,
+  UserPlus, ArrowLeft, UserCog
+} from 'lucide-react';
 
-interface Role {
-  id: number;
-  name: string;
-}
+import AppLayout           from '@/layouts/app-layout';
+import ParticlesBackground from '@/components/ParticlesBackground';
+import { Button }          from '@/components/ui/button';
 
-interface Props {
-  roles: Role[];
-}
+interface Role  { id: number; name: string }
+interface Props { roles: Role[] }
 
 export default function CreateUser({ roles }: Props) {
-  const { data, setData, post, processing, errors } = useForm({
-    name: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-    role: '',
+  /* ─── État Inertia ─── */
+  const { data, setData, post, processing, errors, reset } = useForm({
+    name: '', email: '', role: '', password: '', password_confirmation: '',
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
+  /* ─── État local ─── */
+  const [showPwd,     setShowPwd]     = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pwdErr,      setPwdErr]      = useState('');
 
-  const validatePassword = (password: string): boolean => {
-    const minLength = password.length >= 10;
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    return minLength && hasLowerCase && hasUpperCase && hasNumber;
-  };
+  /* ─── Helpers ─── */
+  const pwdOK = (p: string) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{10,}$/.test(p);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validatePassword(data.password)) {
-      setPasswordError("Le mot de passe doit contenir au moins 10 caractères, incluant des lettres majuscules, des lettres minuscules et des chiffres.");
-      return;
-    }
+    if (!pwdOK(data.password))
+      return setPwdErr('10 car. min. + maj + min + chiffre');
+    if (data.password !== data.password_confirmation)
+      return setPwdErr('Les mots de passe ne correspondent pas');
 
-    setPasswordError('');
-    post(route('users.store'));
+    setPwdErr('');
+    /* 🔑 on transmet les données AVANT les options */
+    post(route('users.store'), data, {
+      onSuccess: () => reset(),
+    });
   };
 
+  /* ─────────────────────────────────────────── */
   return (
     <>
       <Head title="Créer un utilisateur" />
-      <AppLayout
-        breadcrumbs={[
-          { title: 'Dashboard', href: '/dashboard' },
+
+      <div className="relative min-h-screen bg-gradient-to-br
+                      from-white via-slate-100 to-slate-200
+                      dark:from-[#0a0420] dark:via-[#0e0a32] dark:to-[#1B1749]
+                      transition-colors duration-500">
+        <ParticlesBackground />
+
+        <AppLayout breadcrumbs={[
+          { title: 'Dashboard',    href: '/dashboard' },
           { title: 'Utilisateurs', href: '/users' },
-          { title: 'Créer un utilisateur', href: '/users/create' },
-        ]}
-      >
-        <div className="grid grid-cols-12 gap-6 p-6 bg-white">
-          <div className="col-span-12 lg:col-span-8 xl:col-span-8">
-            <h1 className="text-xl font-semibold mb-6">Créer un nouvel utilisateur</h1>
+          { title: 'Créer',        href: '/users/create' },
+        ]}>
 
-            <form onSubmit={handleSubmit}>
-              {/* Nom */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nom<span className="text-red-600">*</span></label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={data.name}
-                    onChange={(e) => setData('name', e.target.value)}
-                    className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    required
-                  />
-                  {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email<span className="text-red-600">*</span></label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={data.email}
-                    onChange={(e) => setData('email', e.target.value)}
-                    className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    required
-                  />
-                  {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
-                </div>
-              </div>
+          <div className="grid grid-cols-12 gap-6 p-6">
 
-              {/* Mot de passe */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Mot de passe <span className="text-red-600">*</span> <span className="text-gray-500 text-xs">[1]</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    name="password"
-                    value={data.password}
-                    onChange={(e) => setData('password', e.target.value)}
-                    className="mt-1 block w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    autoComplete="new-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-                {!passwordError && errors.password && <p className="text-sm text-red-600">{errors.password}</p>}
-              </div>
+            {/* ────────── Formulaire ────────── */}
+            <div className="col-span-12 lg:col-span-8 xl:col-span-7">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-xl
+                              dark:bg-white/5 dark:border-slate-700 backdrop-blur-md p-8">
+                <h1 className="text-xl font-semibold mb-6 text-slate-900 dark:text-white">
+                  Nouvel utilisateur
+                </h1>
 
-              {/* Confirmation du mot de passe */}
-              <div>
-                <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700">Confirmer le mot de passe<span className="text-red-600">*</span></label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    id="password_confirmation"
-                    name="password_confirmation"
-                    value={data.password_confirmation}
-                    onChange={(e) => setData('password_confirmation', e.target.value)}
-                    className="mt-1 block w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {errors.password_confirmation && <p className="text-sm text-red-600">{errors.password_confirmation}</p>}
-              </div>
-              </div>
-              {/* Rôle */}
-              <div className="mb-6">
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700">Rôle<span className="text-red-600">*</span></label>
-                <select
-                  id="role"
-                  name="role"
-                  value={data.role}
-                  onChange={(e) => setData('role', e.target.value)}
-                  className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  required
-                >
-                  <option value="">Sélectionner un rôle</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.name}>{role.name}</option>
-                  ))}
-                </select>
-                {errors.role && <p className="text-sm text-red-600">{errors.role}</p>}
-              </div>
+                <form onSubmit={submit} className="space-y-6">
+                  {/* Nom */}
+                  <Field id="name" label="Nom complet" Icon={User}
+                         value={data.name} onChange={v => setData('name', v)}
+                         error={errors.name} required />
 
-              {/* Note sur mot de passe */}
-              <p className="text-xs text-gray-500 mb-6">
-                [1] Le mot de passe doit contenir au moins 10 caractères, incluant des lettres majuscules, des lettres minuscules et des chiffres.
-              </p>
+                  {/* Email */}
+                  <Field id="email" label="Adresse e-mail" Icon={Mail} type="email"
+                         value={data.email} onChange={v => setData('email', v)}
+                         error={errors.email} required autoComplete="new-email" />
 
-              {/* Boutons */}
-              <div className="flex justify-between">
-                <Button
-                  type="button"
-                  onClick={() => window.history.back()}
-                  className="bg-gray-300 text-gray-800 hover:bg-gray-400 focus:ring-4 focus:ring-gray-400 px-6 py-3 rounded-md"
-                >
-                  Annuler
-                </Button>
+                 <div>
+  <label
+    htmlFor="role"
+    className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+  >
+    Rôle utilisateur <span className="text-red-500">*</span>
+  </label>
 
-                <Button
-                  type="submit"
-                  disabled={processing}
-                  className="bg-gray-600 text-white hover:bg-gray-700 focus:ring-4 focus:ring-gray-500 px-6 py-3 rounded-md"
-                >
-                  {processing ? 'Création...' : 'Créer l\'utilisateur'}
-                </Button>
+  {/* Le conteneur garde la position relative pour les icônes */}
+  <div className="relative">
+    {/* Icône UserCog placée à gauche */}
+    <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+
+    <select
+      id="role"
+      name="role"
+      required
+      value={data.role}
+      onChange={e => setData('role', e.target.value)}
+      /* Ajout de pl-10 pour laisser la place à l’icône à gauche */
+      className={`appearance-none block w-full rounded-lg border py-3 pl-10 pr-10 bg-white dark:bg-slate-800
+                  ${errors.role
+                    ? 'border-red-500 text-red-500'
+                    : 'border-slate-300 text-slate-900 dark:text-white dark:border-slate-700'}
+                  focus:border-red-500 focus:ring-1 focus:ring-red-500`}
+    >
+      <option value="" disabled>Choisissez un rôle</option>
+      {roles.map(r => (
+        <option key={r.id} value={r.name}>{r.name}</option>
+      ))}
+    </select>
+
+    {/* Icône ChevronDown déjà en place */}
+    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+  </div>
+
+  {errors.role && (
+    <p className="mt-1 text-sm text-red-500">{errors.role}</p>
+  )}
+</div>
+
+                  {/* Mot de passe */}
+                  <PasswordField id="password" label="Mot de passe" Icon={Shield}
+                                 show={showPwd} toggleShow={() => setShowPwd(!showPwd)}
+                                 value={data.password} onChange={v => setData('password', v)}
+                                 error={pwdErr || errors.password} />
+
+                  {/* Confirmation */}
+                  <PasswordField id="password_confirmation" label="Confirmer le mot de passe" Icon={Shield}
+                                 show={showConfirm} toggleShow={() => setShowConfirm(!showConfirm)}
+                                 value={data.password_confirmation}
+                                 onChange={v => setData('password_confirmation', v)}
+                                 error={errors.password_confirmation} />
+
+                  {/* Actions */}
+                  <div className="flex justify-between pt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => window.history.back()}
+                      className="bg-muted hover:bg-muted/80 text-slate-700 dark:text-slate-300"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" /> Annuler
+                    </Button>
+
+                    <Button
+                      type="submit"
+                      disabled={processing}
+                      className="group relative flex items-center justify-center
+                                 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-6 py-3
+                                 text-sm font-semibold text-white shadow-md transition-all
+                                 hover:from-red-500 hover:to-red-600 focus:ring-2 focus:ring-red-500"
+                    >
+                      {processing
+                        ? (<div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />)
+                        : (<UserPlus className="w-4 h-4 mr-2" />)}
+                      {processing ? 'Création…' : "Créer l'utilisateur"}
+                    </Button>
+                  </div>
+                </form>
               </div>
-            </form>
+            </div>
+
+            {/* ────────── Aide ────────── */}
+            <div className="col-span-12 lg:col-span-4 xl:col-span-5">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-xl
+                              dark:bg-white/5 dark:border-slate-700 backdrop-blur-md p-8">
+                <h2 className="text-lg font-medium mb-4 text-slate-900 dark:text-white">
+                  Bonnes pratiques de sécurité
+                </h2>
+                <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-300 text-sm">
+                  <li>Mot de passe : 10+ caractères, majuscule, minuscule et chiffre</li>
+                  <li>L’e-mail doit être unique</li>
+                  <li>Le rôle détermine les permissions attribuées</li>
+                </ul>
+              </div>
+            </div>
+
           </div>
-        </div>
-      </AppLayout>
+        </AppLayout>
+      </div>
     </>
+  );
+}
+
+/* ────────── Composants réutilisables ────────── */
+interface FieldProps {
+  id: string; label: string; Icon: any;
+  type?: React.HTMLInputTypeAttribute; required?: boolean;
+  value: string; onChange: (v: string) => void; autoComplete?: string;
+  error?: string | false;
+}
+function Field({
+  id, label, Icon, type = 'text', required = true,
+  value, onChange, autoComplete, error,
+}: FieldProps) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+        <input
+          id={id}
+          name={id}
+          type={type}
+          required={required}
+          value={value}
+          autoComplete={autoComplete}
+          onChange={e => onChange(e.target.value)}
+          className={`block w-full rounded-lg border py-3 pl-10 pr-3 bg-white dark:bg-slate-800
+                      ${error
+                        ? 'border-red-500 text-red-500'
+                        : 'border-slate-300 text-slate-900 dark:text-white dark:border-slate-700'}
+                      focus:border-red-500 focus:ring-1 focus:ring-red-500`}
+        />
+      </div>
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+interface PasswordFieldProps {
+  id: string; label: string; Icon: any; show: boolean; toggleShow: () => void;
+  value: string; onChange: (v: string) => void; error?: string | false;
+}
+function PasswordField({
+  id, label, Icon, show, toggleShow, value, onChange, error,
+}: PasswordFieldProps) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        {label} <span className="text-red-500">*</span>
+      </label>
+      <div className="relative">
+        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+        <input
+          id={id}
+          name={id}
+          type={show ? 'text' : 'password'}
+          required
+          value={value}
+          autoComplete="new-password"
+          onChange={e => onChange(e.target.value)}
+          className={`block w-full rounded-lg border py-3 pl-10 pr-10 bg-white dark:bg-slate-800
+                      ${error
+                        ? 'border-red-500 text-red-500'
+                        : 'border-slate-300 text-slate-900 dark:text-white dark:border-slate-700'}
+                      focus:border-red-500 focus:ring-1 focus:ring-red-500`}
+        />
+        <button
+          type="button"
+          onClick={toggleShow}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-black dark:hover:text-white"
+        >
+          {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+        </button>
+      </div>
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+    </div>
   );
 }
