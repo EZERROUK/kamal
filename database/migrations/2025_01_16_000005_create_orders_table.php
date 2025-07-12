@@ -44,6 +44,7 @@ return new class extends Migration
             
             $table->timestamps();
             $table->softDeletes();
+            $table->softDeletes();
             
             // Index
             $table->index(['status', 'order_date']);

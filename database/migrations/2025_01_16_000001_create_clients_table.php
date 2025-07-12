@@ -36,6 +36,7 @@ return new class extends Migration
             
             $table->timestamps();
             $table->softDeletes();
+            $table->softDeletes();
             
             // Index
             $table->index(['company_name', 'is_active']);

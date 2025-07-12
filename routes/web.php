@@ -58,6 +58,48 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* ------------------------------------------------------------------ */
     /* Catalogue – Produits                                               */
     /* ------------------------------------------------------------------ */
+
+    /* ------------------------------------------------------------------ */
+    /* Clients                                                            */
+    /* ------------------------------------------------------------------ */
+    Route::prefix('clients')->name('clients.')->group(function () {
+        Route::get('/',                [ClientController::class, 'index'  ])->name('index');
+        Route::get('/create',          [ClientController::class, 'create' ])->name('create');
+        Route::post('/',               [ClientController::class, 'store'  ])->name('store');
+        Route::get('/{client}',        [ClientController::class, 'show'   ])->name('show');
+        Route::get('/{client}/edit',   [ClientController::class, 'edit'   ])->name('edit');
+        Route::patch('/{client}',      [ClientController::class, 'update' ])->name('update');
+        Route::delete('/{client}',     [ClientController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/restore',   [ClientController::class, 'restore'])->name('restore');
+    });
+
+    /* ------------------------------------------------------------------ */
+    /* Devis                                                              */
+    /* ------------------------------------------------------------------ */
+    Route::prefix('quotes')->name('quotes.')->group(function () {
+        Route::get('/',                [QuoteController::class, 'index'  ])->name('index');
+        Route::get('/create',          [QuoteController::class, 'create' ])->name('create');
+        Route::post('/',               [QuoteController::class, 'store'  ])->name('store');
+        Route::get('/{quote}',         [QuoteController::class, 'show'   ])->name('show');
+        Route::get('/{quote}/edit',    [QuoteController::class, 'edit'   ])->name('edit');
+        Route::patch('/{quote}',       [QuoteController::class, 'update' ])->name('update');
+        Route::delete('/{quote}',      [QuoteController::class, 'destroy'])->name('destroy');
+        
+        // Actions spéciales
+        Route::post('/{quote}/change-status',    [QuoteController::class, 'changeStatus'])->name('change-status');
+        Route::post('/{quote}/convert-to-order', [QuoteController::class, 'convertToOrder'])->name('convert-to-order');
+        Route::post('/{quote}/duplicate',        [QuoteController::class, 'duplicate'])->name('duplicate');
+        Route::get('/{quote}/export-pdf',        [QuoteController::class, 'exportPDF'])->name('export-pdf');
+    });
+
+    /* ------------------------------------------------------------------ */
+    /* Commandes                                                          */
+    /* ------------------------------------------------------------------ */
+    Route::prefix('orders')->name('orders.')->group(function () {
+        Route::get('/',           [OrderController::class, 'index'])->name('index');
+        Route::get('/{order}',    [OrderController::class, 'show' ])->name('show');
+    });
+
     Route::prefix('products')->name('products.')->group(function () {
 
         /* --- Route statique avant les paramètres dynamiques ------------- */
