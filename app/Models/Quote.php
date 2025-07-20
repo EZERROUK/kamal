@@ -17,6 +17,7 @@ class Quote extends Model
         'quote_number',
         'client_id',
         'user_id',
+        'duplicated_from_id',
         'status',
         'quote_date',
         'valid_until',
@@ -81,6 +82,16 @@ class Quote extends Model
     public function order(): HasOne
     {
         return $this->hasOne(Order::class);
+    }
+
+    public function duplicatedFrom(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class, 'duplicated_from_id');
+    }
+
+    public function duplicates(): HasMany
+    {
+        return $this->hasMany(Quote::class, 'duplicated_from_id');
     }
 
     /* Scopes */

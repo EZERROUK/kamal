@@ -117,7 +117,9 @@ class QuoteController extends Controller
             'currency',
             'items.product',
             'statusHistories.user',
-            'order'
+            'order',
+            'duplicatedFrom',
+            'duplicates'
         ]);
 
         return Inertia::render('Quotes/Show', [
@@ -249,6 +251,7 @@ class QuoteController extends Controller
         $newQuote = Quote::create([
             'client_id' => $quote->client_id,
             'user_id' => Auth::id(),
+            'duplicated_from_id' => $quote->id,
             'quote_date' => now()->toDateString(),
             'valid_until' => now()->addDays(30)->toDateString(),
             'currency_code' => $quote->currency_code,
@@ -271,6 +274,37 @@ class QuoteController extends Controller
                 'sort_order' => $item->sort_order,
             ]);
         }
+
+        // Enregistrer l'activité de duplication
+        activity('quote')
+            ->performedOn($newQuote)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'action' => 'duplicated',
+                'original_quote_id' => $quote->id,
+                'original_quote_number' => $quote->quote_number,
+                'new_quote_number' => $newQuote->quote_number,
+                'client_name' => $quote->client->company_name,
+                'duplicated_by' => Auth::user()->name,
+                'duplicated_at' => now()->toIso8601String(),
+                'items_count' => $quote->items->count(),
+                'total_amount' => $quote->total_ttc,
+                'currency' => $quote->currency_code,
+            ])
+            ->log('Devis dupliqué');
+
+        // Enregistrer aussi sur le devis original
+        activity('quote')
+            ->performedOn($quote)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'action' => 'source_of_duplication',
+                'new_quote_id' => $newQuote->id,
+                'new_quote_number' => $newQuote->quote_number,
+                'duplicated_by' => Auth::user()->name,
+                'duplicated_at' => now()->toIso8601String(),
+            ])
+            ->log('Devis utilisé comme source de duplication');
 
         return redirect()->route('quotes.edit', $newQuote)
             ->with('success', 'Devis dupliqué avec succès.');
