@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
-            
+
             // Informations générales
             $table->string('company_name');
             $table->string('contact_name')->nullable();
@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('city');
             $table->string('postal_code')->nullable();
             $table->string('country')->default('Maroc');
-            
+
             // Données fiscales marocaines
             $table->string('ice')->nullable()->comment('Identifiant Commun de l\'Entreprise');
             $table->string('rc')->nullable()->comment('Registre de Commerce');
@@ -29,15 +29,14 @@ return new class extends Migration
             $table->string('if_number')->nullable()->comment('Identifiant Fiscal');
             $table->enum('tax_regime', ['normal', 'auto_entrepreneur', 'exonere'])->default('normal');
             $table->boolean('is_tva_subject')->default(true)->comment('Assujetti à la TVA');
-            
+
             // Métadonnées
             $table->boolean('is_active')->default(true);
             $table->text('notes')->nullable();
-            
+
             $table->timestamps();
             $table->softDeletes();
-            $table->softDeletes();
-            
+
             // Index
             $table->index(['company_name', 'is_active']);
             $table->index('ice');

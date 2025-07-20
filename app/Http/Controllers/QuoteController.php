@@ -92,7 +92,7 @@ class QuoteController extends Controller
         // Créer les items
         foreach ($validated['items'] as $index => $itemData) {
             $product = Product::findOrFail($itemData['product_id']);
-            
+
             $quote->items()->create([
                 'product_id' => $product->id,
                 'product_name_snapshot' => $product->name,
@@ -187,7 +187,7 @@ class QuoteController extends Controller
 
         foreach ($validated['items'] as $index => $itemData) {
             $product = Product::findOrFail($itemData['product_id']);
-            
+
             $quote->items()->create([
                 'product_id' => $product->id,
                 'product_name_snapshot' => $product->name,

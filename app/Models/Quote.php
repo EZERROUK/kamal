@@ -103,7 +103,7 @@ class Quote extends Model
     public function scopeExpired($query)
     {
         return $query->where('valid_until', '<', now()->toDateString())
-                    ->whereIn('status', ['sent', 'viewed']);
+                     ->whereIn('status', ['sent', 'viewed']);
     }
 
     public function scopeByStatus($query, string $status)
@@ -114,7 +114,7 @@ class Quote extends Model
     /* Accessors */
     public function getIsExpiredAttribute(): bool
     {
-        return $this->valid_until < now()->toDateString() 
+        return $this->valid_until < now()->toDateString()
             && in_array($this->status, ['sent', 'viewed']);
     }
 
@@ -125,7 +125,7 @@ class Quote extends Model
 
     public function getFormattedTotalAttribute(): string
     {
-        return number_format($this->total_ttc, 2, ',', ' ') . ' ' . $this->currency_code;
+        return number_format((float) $this->total_ttc, 2, ',', ' ') . ' ' . $this->currency_code;
     }
 
     /* Methods */
@@ -140,13 +140,13 @@ class Quote extends Model
     public function changeStatus(string $newStatus, ?User $user = null, ?string $comment = null): bool
     {
         $oldStatus = $this->status;
-        
+
         if (!$this->canTransitionTo($newStatus)) {
             return false;
         }
 
         $this->status = $newStatus;
-        
+
         // Mettre à jour les timestamps spécifiques
         match ($newStatus) {
             'sent' => $this->sent_at = now(),
@@ -256,7 +256,7 @@ class Quote extends Model
             ->orderBy('id', 'desc')
             ->first();
 
-        $nextNumber = $lastQuote ? 
+        $nextNumber = $lastQuote ?
             (int) substr($lastQuote->quote_number, -4) + 1 : 1;
 
         return sprintf('DEV-%d-%04d', $year, $nextNumber);
@@ -269,7 +269,7 @@ class Quote extends Model
             ->orderBy('id', 'desc')
             ->first();
 
-        $nextNumber = $lastOrder ? 
+        $nextNumber = $lastOrder ?
             (int) substr($lastOrder->order_number, -4) + 1 : 1;
 
         return sprintf('CMD-%d-%04d', $year, $nextNumber);
@@ -284,13 +284,13 @@ class Quote extends Model
             if (empty($quote->quote_number)) {
                 $quote->quote_number = static::generateQuoteNumber();
             }
-            
+
             if (empty($quote->quote_date)) {
-                $quote->quote_date = now()->toDateString();
+                $quote->quote_date = now();
             }
-            
+
             if (empty($quote->valid_until)) {
-                $quote->valid_until = now()->addDays(30)->toDateString();
+                $quote->valid_until = now()->addDays(value: 30);
             }
 
             // Snapshot du client
